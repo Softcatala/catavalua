@@ -12,7 +12,6 @@ Workflow:
     For each unprocessed clip:
       - Fetches audio from the tar archive (HTTP range, no full download)
       - Runs `gemini` CLI with audio file + candidate transcriptions
-      - Runs `claude -p` with candidate transcriptions (text only)
       - POSTs results to the catvoice backend
       - Deletes temp audio
 
@@ -67,12 +66,6 @@ TEMP_DIR = DATA_DIR / "tmp"
 TAR_HEADER_SIZE = 512
 TAR_COUNT = 51  # audio-0.tar … audio-50.tar
 
-CLAUDE_CMD_BASE = [
-    "claude",
-    "--dangerously-skip-permissions",
-    "--model", "sonnet",
-    "-p",
-]
 GEMINI_CMD_BASE = [
     "gemini",
     "--yolo",
@@ -307,37 +300,8 @@ def fetch_audio(entry: dict, dest: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Claude and Gemini
+# Gemini
 # ---------------------------------------------------------------------------
-
-CLAUDE_PROMPT = """\
-You are a Catalan language expert reviewing speech transcriptions.
-
-Two ASR transcriptions of an audio clip (expected to be in Catalan):
-
-Candidate 1: {candidate_1}
-
-Candidate 2: {candidate_2}
-
-Speaker gender: {gender}
-Duration: {duration:.1f}s
-
-FIRST: Determine if the text is actually in Catalan. It may sometimes be in Spanish or another language.
-
-If the clip is NOT in Catalan, return:
-{{"is_catalan": false, "detected_language": "spanish|other|unknown", "corrected_transcription": null, "confidence": "high|medium|low"}}
-
-If the clip IS in Catalan, produce a verbatim-corrected transcription:
-- Keep all filler words (uh, eh, mmm, doncs, bé, home, mira, etc.)
-- Keep repetitions and false starts exactly as spoken
-- Do NOT correct grammar or add punctuation not clearly present
-- Choose the more verbatim candidate and correct obvious errors
-
-Return:
-{{"is_catalan": true, "detected_language": "catalan", "corrected_transcription": "...", "detected_gender": "male|female|unknown", "confidence": "high|medium|low"}}
-
-Respond ONLY with JSON, no markdown.
-"""
 
 GEMINI_PROMPT = """\
 You are a Catalan language expert. Read and analyze the audio file at: {audio_path}
@@ -409,17 +373,6 @@ def _parse_json(raw: str) -> dict | None:
         return None
 
 
-def run_claude(row: dict) -> dict | None:
-    prompt = CLAUDE_PROMPT.format(
-        candidate_1=row.get("candidate_1") or "",
-        candidate_2=row.get("candidate_2") or "",
-        gender=row.get("gender") or "unknown",
-        duration=float(row.get("duration") or 0),
-    )
-    raw = _run_cmd(CLAUDE_CMD_BASE + [prompt], label="claude")
-    return _parse_json(raw) if raw else None
-
-
 def run_gemini(row: dict, audio_path: Path) -> dict | None:
     prompt = GEMINI_PROMPT.format(
         audio_path=str(audio_path.resolve()),
@@ -439,100 +392,61 @@ def run_gemini(row: dict, audio_path: Path) -> dict | None:
 def process_clip(api_url: str, row: dict, tar_index: dict[str, dict]) -> bool:
     clip_id = row["clip_id"]
 
-    # Ensure clip metadata exists in DB
     try:
         ensure_clip(api_url, row)
     except Exception as e:
         log.warning("%s: failed to upsert clip: %s", clip_id[:8], e)
 
-    needs_claude = not has_origin(api_url, clip_id, "claude")
-    needs_gemini = not has_origin(api_url, clip_id, "gemini")
-
-    if not needs_claude and not needs_gemini:
+    if has_origin(api_url, clip_id, "gemini"):
         log.debug("%s: already done", clip_id[:8])
         return True
 
     entry = tar_index.get(clip_id)
-    audio_path: Path | None = None
+    if not entry:
+        log.warning("%s: not in TAR index — skipping (run --build-index-only first)", clip_id[:8])
+        return False
 
-    if entry and needs_gemini:
-        TEMP_DIR.mkdir(parents=True, exist_ok=True)
-        tmp = tempfile.NamedTemporaryFile(
-            suffix=".wav", dir=TEMP_DIR, delete=False, prefix=f"cv_{clip_id[:8]}_"
-        )
-        audio_path = Path(tmp.name)
-        tmp.close()
-        try:
-            log.info("%s: fetching audio from tar-%d …", clip_id[:8], entry["tar_file"])
-            fetch_audio(entry, audio_path)
-            post_tar_index(api_url, clip_id, entry)
-        except Exception as e:
-            log.warning("%s: audio fetch failed: %s", clip_id[:8], e)
-            audio_path.unlink(missing_ok=True)
-            audio_path = None
+    TEMP_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = tempfile.NamedTemporaryFile(suffix=".wav", dir=TEMP_DIR, delete=False, prefix=f"cv_{clip_id[:8]}_")
+    audio_path = Path(tmp.name)
+    tmp.close()
 
-    success = True
+    try:
+        log.info("%s: fetching audio from tar-%d …", clip_id[:8], entry["tar_file"])
+        fetch_audio(entry, audio_path)
+        post_tar_index(api_url, clip_id, entry)
+    except Exception as e:
+        log.warning("%s: audio fetch failed: %s", clip_id[:8], e)
+        audio_path.unlink(missing_ok=True)
+        return False
 
-    if needs_claude:
-        log.info("%s: running Claude (text) …", clip_id[:8])
-        result = run_claude(row)
-        if result:
-            if result.get("is_catalan") is False:
-                lang = result.get("detected_language", "unknown")
-                log.info("%s: Claude says NOT Catalan (detected: %s) — flagging", clip_id[:8], lang)
-                patch_clip_metadata(api_url, clip_id, detectedLanguage=lang, isRelevant=False)
-                # No transcription to save; skip Gemini too since text confirms non-Catalan
-                if audio_path:
-                    audio_path.unlink(missing_ok=True)
-                return True
-            elif result.get("corrected_transcription"):
-                try:
-                    meta = {k: v for k, v in result.items() if k not in ("corrected_transcription", "is_catalan")}
-                    post_transcription(api_url, clip_id, "claude", result["corrected_transcription"], meta)
-                    patch_clip_metadata(api_url, clip_id, detectedLanguage="catalan", isRelevant=True)
-                    log.info("%s: Claude transcription saved", clip_id[:8])
-                except Exception as e:
-                    log.warning("%s: failed to save Claude result: %s", clip_id[:8], e)
-                    success = False
-            else:
-                log.warning("%s: Claude produced no usable output", clip_id[:8])
-                success = False
-        else:
-            log.warning("%s: Claude produced no usable output", clip_id[:8])
-            success = False
-
-    if needs_gemini and audio_path and audio_path.exists():
-        log.info("%s: running Gemini (audio) …", clip_id[:8])
+    success = False
+    try:
+        log.info("%s: running Gemini …", clip_id[:8])
         result = run_gemini(row, audio_path)
         if result:
             if result.get("is_catalan") is False:
                 lang = result.get("detected_language", "unknown")
-                log.info("%s: Gemini says NOT Catalan (detected: %s) — flagging", clip_id[:8], lang)
+                log.info("%s: NOT Catalan (detected: %s) — flagging", clip_id[:8], lang)
                 patch_clip_metadata(api_url, clip_id, detectedLanguage=lang, isRelevant=False)
+                success = True
             elif result.get("corrected_transcription"):
-                try:
-                    meta = {k: v for k, v in result.items() if k not in ("corrected_transcription", "is_catalan")}
-                    post_transcription(api_url, clip_id, "gemini", result["corrected_transcription"], meta)
-                    dialect = result.get("dialect_notes")
-                    patch_kwargs: dict = {"detectedLanguage": "catalan", "isRelevant": True}
-                    if dialect:
-                        patch_kwargs["detectedDialect"] = dialect
-                    patch_clip_metadata(api_url, clip_id, **patch_kwargs)
-                    log.info("%s: Gemini transcription saved (dialect: %s)", clip_id[:8], dialect or "n/a")
-                except Exception as e:
-                    log.warning("%s: failed to save Gemini result: %s", clip_id[:8], e)
-                    success = False
+                meta = {k: v for k, v in result.items() if k not in ("corrected_transcription", "is_catalan")}
+                post_transcription(api_url, clip_id, "gemini", result["corrected_transcription"], meta)
+                dialect = result.get("dialect_notes")
+                patch_kwargs: dict = {"detectedLanguage": "catalan", "isRelevant": True}
+                if dialect:
+                    patch_kwargs["detectedDialect"] = dialect
+                patch_clip_metadata(api_url, clip_id, **patch_kwargs)
+                log.info("%s: saved (dialect: %s)", clip_id[:8], dialect or "n/a")
+                success = True
             else:
                 log.warning("%s: Gemini produced no usable output", clip_id[:8])
-                success = False
         else:
-            log.warning("%s: Gemini produced no usable output", clip_id[:8])
-            success = False
-    elif needs_gemini and not audio_path:
-        log.warning("%s: skipping Gemini — audio not available (not indexed?)", clip_id[:8])
-
-    # Always clean up audio
-    if audio_path:
+            log.warning("%s: Gemini produced no output", clip_id[:8])
+    except Exception as e:
+        log.warning("%s: error processing Gemini result: %s", clip_id[:8], e)
+    finally:
         audio_path.unlink(missing_ok=True)
 
     return success
