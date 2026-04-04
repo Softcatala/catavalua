@@ -1,0 +1,7 @@
+node_modules/
+dist/
+data/
+*.db
+apps/backend/.env
+apps/backend/.env.production
+apps/frontend/dist/

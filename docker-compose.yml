@@ -1,0 +1,66 @@
+services:
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: catvoice-backend
+    restart: unless-stopped
+    networks:
+      - traefik
+      - catvoice-internal
+    volumes:
+      - catvoice-data:/data
+    env_file:
+      - ./apps/backend/.env.production
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.catvoice-backend.rule=Host(`api.catvoice.internal.liam.cat`)"
+      - "traefik.http.routers.catvoice-backend.entrypoints=websecure"
+      - "traefik.http.routers.catvoice-backend.tls=true"
+      - "traefik.http.routers.catvoice-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.catvoice-backend.middlewares=compression@file"
+      - "traefik.http.services.catvoice-backend.loadbalancer.server.port=3000"
+      - "traefik.docker.network=traefik"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: https://api.catvoice.internal.liam.cat
+    container_name: catvoice-frontend
+    restart: unless-stopped
+    networks:
+      - traefik
+    depends_on:
+      - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.catvoice-frontend.rule=Host(`catvoice.internal.liam.cat`)"
+      - "traefik.http.routers.catvoice-frontend.entrypoints=websecure"
+      - "traefik.http.routers.catvoice-frontend.tls=true"
+      - "traefik.http.routers.catvoice-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.catvoice-frontend.middlewares=security-headers@file,compression@file"
+      - "traefik.http.services.catvoice-frontend.loadbalancer.server.port=8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+networks:
+  traefik:
+    external: true
+  catvoice-internal:
+    driver: bridge
+
+volumes:
+  catvoice-data:
+    driver: local

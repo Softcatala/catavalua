@@ -1,0 +1,13 @@
+{
+  "name": "catvoice",
+  "private": true,
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev:backend": "pnpm --filter backend run dev",
+    "dev:frontend": "pnpm --filter frontend run dev",
+    "install:all": "pnpm install"
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2"
+  }
+}
