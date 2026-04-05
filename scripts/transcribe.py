@@ -246,8 +246,8 @@ def iter_dataset(offset: int = 0, page_size: int = 100):
 def fetch_all_clip_ids(api_url: str) -> list[str]:
     """Return all clip IDs currently stored in the backend database."""
     ids: list[str] = []
-    page = 0
-    limit = 500
+    page = 1
+    limit = 100  # backend max
     while True:
         data = http_get_json(f"{api_url}/clips?search=&page={page}&limit={limit}")
         items = data.get("items", [])
@@ -509,7 +509,7 @@ def process_clip(api_url: str, row: dict, tar_index: dict[str, dict]) -> bool:
 
 def main():
     parser = argparse.ArgumentParser(description="CatVoice transcription pipeline")
-    parser.add_argument("--api-url", default="http://localhost:3000")
+    parser.add_argument("--api-url", default="https://api.catvoice.internal.liam.cat")
     parser.add_argument("--max", type=int, default=0, help="Max clips to process (0=all)")
     parser.add_argument("--offset", type=int, default=0, help="Dataset row offset")
     parser.add_argument(
