@@ -66,10 +66,17 @@ TEMP_DIR = DATA_DIR / "tmp"
 TAR_HEADER_SIZE = 512
 TAR_COUNT = 51  # audio-0.tar … audio-50.tar
 
-GEMINI_CMD_BASE = [
-    "gemini",
-    "--yolo",
+GEMINI_MODELS = [
+    "gemini-3-flash-preview",       # newest generation, full flash
+    "gemini-3.1-flash-lite-preview", # newer generation, lite
+    "gemini-2.5-flash",             # stable
+    "gemini-2.5-flash-lite",        # most limited fallback
 ]
+
+_RATE_LIMIT_RE = re.compile(
+    r"quota|rate.?limit|resource.?exhausted|429|too many requests",
+    re.IGNORECASE,
+)
 
 # ---------------------------------------------------------------------------
 # HTTP helpers
@@ -180,13 +187,19 @@ def index_tar(tar_num: int) -> list[dict]:
 
 
 def build_full_index() -> dict[str, dict]:
-    """Index all tar files and return clip_id -> entry mapping."""
+    """Index all tar files, saving progress after each one."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    index: dict[str, dict] = {}
+    index = load_index()  # resume from partial run if available
+    # Determine which tar files have already been indexed
+    indexed_tars = {entry["tar_file"] for entry in index.values()}
     for i in range(TAR_COUNT):
+        if i in indexed_tars:
+            log.info("tar-%d: already indexed, skipping", i)
+            continue
         try:
             for entry in index_tar(i):
                 index[entry["clip_id"]] = entry
+            save_index(index)  # persist after each tar
         except Exception as e:
             log.error("tar-%d: indexing failed: %s", i, e)
     return index
@@ -230,6 +243,22 @@ def iter_dataset(offset: int = 0, page_size: int = 100):
 # Backend API
 # ---------------------------------------------------------------------------
 
+def fetch_all_clip_ids(api_url: str) -> list[str]:
+    """Return all clip IDs currently stored in the backend database."""
+    ids: list[str] = []
+    page = 0
+    limit = 500
+    while True:
+        data = http_get_json(f"{api_url}/clips?search=&page={page}&limit={limit}")
+        items = data.get("items", [])
+        for item in items:
+            ids.append(item["clip"]["clipId"])
+        if len(items) < limit:
+            break
+        page += 1
+    return ids
+
+
 def backend_get(api_url: str, path: str):
     try:
         return http_get_json(f"{api_url}{path}")
@@ -254,11 +283,12 @@ def ensure_clip(api_url: str, row: dict) -> None:
     })
 
 
-def has_origin(api_url: str, clip_id: str, origin: str) -> bool:
+def has_gemini_transcription(api_url: str, clip_id: str) -> bool:
+    """Return True if this clip already has a transcription from any Gemini model."""
     data = backend_get(api_url, f"/clips/{clip_id}/transcriptions")
     if not data:
         return False
-    return any(t.get("origin") == origin for t in data)
+    return any(t.get("origin", "").startswith("gemini") for t in data)
 
 
 def post_transcription(api_url: str, clip_id: str, origin: str, text: str, metadata: dict | None) -> None:
@@ -334,7 +364,12 @@ Respond ONLY with JSON, no markdown.
 """
 
 
+class RateLimitError(Exception):
+    """Raised when the Gemini CLI signals a quota or rate-limit error."""
+
+
 def _run_cmd(cmd: list[str], max_attempts: int = 5, label: str = "") -> str | None:
+    """Run a command with retries.  Raises RateLimitError on quota exhaustion."""
     env = os.environ.copy()
     env.pop("CLAUDECODE", None)
     env.pop("CLAUDE_CODE", None)
@@ -344,10 +379,14 @@ def _run_cmd(cmd: list[str], max_attempts: int = 5, label: str = "") -> str | No
             result = subprocess.run(
                 cmd, capture_output=True, text=True, timeout=120, env=env
             )
+            stderr = result.stderr.strip()
+            if _RATE_LIMIT_RE.search(stderr) or _RATE_LIMIT_RE.search(result.stdout):
+                raise RateLimitError(f"{label}: rate limit detected: {stderr[:200]}")
             if result.returncode == 0 and result.stdout.strip():
                 return result.stdout.strip()
-            stderr = result.stderr.strip()
             log.warning("%s attempt %d failed (rc=%d): %s", label, attempt, result.returncode, stderr[:200])
+        except RateLimitError:
+            raise  # propagate immediately — no retry with same model
         except subprocess.TimeoutExpired:
             log.warning("%s attempt %d timed out", label, attempt)
         except FileNotFoundError:
@@ -373,7 +412,8 @@ def _parse_json(raw: str) -> dict | None:
         return None
 
 
-def run_gemini(row: dict, audio_path: Path) -> dict | None:
+def run_gemini(row: dict, audio_path: Path) -> tuple[dict | None, str | None]:
+    """Try each model in priority order.  Returns (result, model_name) or (None, None)."""
     prompt = GEMINI_PROMPT.format(
         audio_path=str(audio_path.resolve()),
         candidate_1=row.get("candidate_1") or "",
@@ -381,8 +421,19 @@ def run_gemini(row: dict, audio_path: Path) -> dict | None:
         gender=row.get("gender") or "unknown",
         duration=float(row.get("duration") or 0),
     )
-    raw = _run_cmd(GEMINI_CMD_BASE + [prompt], label="gemini")
-    return _parse_json(raw) if raw else None
+    for model in GEMINI_MODELS:
+        label = f"gemini/{model}"
+        try:
+            raw = _run_cmd(["gemini", "--yolo", "--model", model, prompt], label=label)
+            if raw:
+                result = _parse_json(raw)
+                if result:
+                    return result, model
+            log.warning("%s: no parseable JSON output", label)
+        except RateLimitError as e:
+            log.warning("%s — falling back to next model", e)
+            continue
+    return None, None
 
 
 # ---------------------------------------------------------------------------
@@ -397,7 +448,7 @@ def process_clip(api_url: str, row: dict, tar_index: dict[str, dict]) -> bool:
     except Exception as e:
         log.warning("%s: failed to upsert clip: %s", clip_id[:8], e)
 
-    if has_origin(api_url, clip_id, "gemini"):
+    if has_gemini_transcription(api_url, clip_id):
         log.debug("%s: already done", clip_id[:8])
         return True
 
@@ -422,28 +473,28 @@ def process_clip(api_url: str, row: dict, tar_index: dict[str, dict]) -> bool:
 
     success = False
     try:
-        log.info("%s: running Gemini …", clip_id[:8])
-        result = run_gemini(row, audio_path)
-        if result:
+        log.info("%s: running Gemini (models: %s) …", clip_id[:8], " > ".join(GEMINI_MODELS))
+        result, model = run_gemini(row, audio_path)
+        if result and model:
             if result.get("is_catalan") is False:
                 lang = result.get("detected_language", "unknown")
-                log.info("%s: NOT Catalan (detected: %s) — flagging", clip_id[:8], lang)
+                log.info("%s: NOT Catalan (detected: %s, model: %s) — flagging", clip_id[:8], lang, model)
                 patch_clip_metadata(api_url, clip_id, detectedLanguage=lang, isRelevant=False)
                 success = True
             elif result.get("corrected_transcription"):
                 meta = {k: v for k, v in result.items() if k not in ("corrected_transcription", "is_catalan")}
-                post_transcription(api_url, clip_id, "gemini", result["corrected_transcription"], meta)
+                post_transcription(api_url, clip_id, model, result["corrected_transcription"], meta)
                 dialect = result.get("dialect_notes")
                 patch_kwargs: dict = {"detectedLanguage": "catalan", "isRelevant": True}
                 if dialect:
                     patch_kwargs["detectedDialect"] = dialect
                 patch_clip_metadata(api_url, clip_id, **patch_kwargs)
-                log.info("%s: saved (dialect: %s)", clip_id[:8], dialect or "n/a")
+                log.info("%s: saved (model: %s, dialect: %s)", clip_id[:8], model, dialect or "n/a")
                 success = True
             else:
-                log.warning("%s: Gemini produced no usable output", clip_id[:8])
+                log.warning("%s: Gemini produced no usable output (model: %s)", clip_id[:8], model)
         else:
-            log.warning("%s: Gemini produced no output", clip_id[:8])
+            log.warning("%s: all Gemini models exhausted or produced no output", clip_id[:8])
     except Exception as e:
         log.warning("%s: error processing Gemini result: %s", clip_id[:8], e)
     finally:
@@ -488,10 +539,16 @@ def main():
         if not index:
             log.error("No index found at %s. Run with --build-index-only first.", INDEX_FILE)
             return
-        log.info("Posting tar index (%d entries) to backend…", len(index))
-        for clip_id, entry in index.items():
-            post_tar_index(api_url, clip_id, entry)
-        log.info("Done.")
+        log.info("Fetching clip IDs from backend…")
+        clip_ids = fetch_all_clip_ids(api_url)
+        log.info("Posting tar index for %d clips in DB (index has %d total)…", len(clip_ids), len(index))
+        updated = 0
+        for clip_id in clip_ids:
+            entry = index.get(clip_id)
+            if entry:
+                post_tar_index(api_url, clip_id, entry)
+                updated += 1
+        log.info("Done. Updated %d clips.", updated)
         return
 
     # Load TAR index (needed for audio fetching)
