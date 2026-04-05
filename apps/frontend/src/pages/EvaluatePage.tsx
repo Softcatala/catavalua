@@ -36,10 +36,15 @@ export function EvaluatePage({ username }: Props) {
   const [voting, setVoting] = useState(false);
   const [error, setError] = useState('');
   const [selectedTranscriptionId, setSelectedTranscriptionId] = useState<number | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editText, setEditText] = useState('');
   const loadCountRef = useRef(0);
 
   const load = useCallback(async (skipAdditional: string[] = []) => {
     setLoading(true);
+    setVoting(false);
+    setEditMode(false);
+    setEditText('');
     setError('');
     setSelectedTranscriptionId(null);
     const skipped = [...getSkipped(), ...skipAdditional];
@@ -96,20 +101,27 @@ export function EvaluatePage({ username }: Props) {
     if (!state || voting) return;
     setVoting(true);
     try {
-      const targetId =
-        dimension === 'transcription'
-          ? selectedTranscriptionId != null ? String(selectedTranscriptionId) : undefined
-          : dimension === 'gender'
-          ? state.clip.gender ?? undefined
-          : state.clip.detectedDialect ?? undefined;
+      let targetId: string | undefined;
 
-      await api.castVote({
-        clipId: state.clip.clipId,
-        dimension,
-        targetId,
-        username,
-        value,
-      });
+      if (dimension === 'transcription') {
+        let voteTargetId = selectedTranscriptionId;
+        // If in edit mode and text changed, save as a new human transcription first
+        if (editMode && editText.trim() && editText.trim() !== state.uniqueTranscriptions[0]?.text) {
+          const newT = await api.createTranscription({
+            clipId: state.clip.clipId,
+            origin: 'human',
+            text: editText.trim(),
+          });
+          voteTargetId = newT.id;
+        }
+        targetId = voteTargetId != null ? String(voteTargetId) : undefined;
+      } else if (dimension === 'gender') {
+        targetId = state.clip.gender ?? undefined;
+      } else {
+        targetId = state.clip.detectedDialect ?? undefined;
+      }
+
+      await api.castVote({ clipId: state.clip.clipId, dimension, targetId, username, value });
       load();
     } catch (e) {
       setError(String(e));
@@ -220,67 +232,89 @@ export function EvaluatePage({ username }: Props) {
           </div>
 
           {/* Dimension-specific content */}
-          {dimension === 'transcription' && (
-            <div className="space-y-3">
-              <h3 className="font-semibold text-gray-700">Select the transcription to evaluate:</h3>
-              {state.uniqueTranscriptions.length === 0 ? (
+          {dimension === 'transcription' && (() => {
+            const best = state.uniqueTranscriptions[0];
+            if (!best) {
+              return (
                 <div className="space-y-3">
-                  {[state.clip.candidate1, state.clip.candidate2]
-                    .filter(Boolean)
-                    .map((t, i) => (
-                      <div key={i} className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
-                        <div className="text-xs text-gray-400 mb-1">Candidate {i + 1}</div>
-                        {t}
-                      </div>
-                    ))}
+                  {[state.clip.candidate1, state.clip.candidate2].filter(Boolean).map((t, i) => (
+                    <div key={i} className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
+                      <div className="text-xs text-gray-400 mb-1">Candidate {i + 1}</div>
+                      {t}
+                    </div>
+                  ))}
                   <p className="text-sm text-gray-400">No AI-corrected transcriptions yet for this clip.</p>
                 </div>
-              ) : (
-                state.uniqueTranscriptions.map((t) => {
-                  const tVotes = state.votes.find(
-                    (v) => v.dimension === 'transcription' && v.targetId === String(t.representativeId),
-                  );
-                  const isSelected = selectedTranscriptionId === t.representativeId;
-                  return (
+              );
+            }
+
+            const tVotes = state.votes.find(
+              (v) => v.dimension === 'transcription' && v.targetId === String(best.representativeId),
+            );
+
+            return (
+              <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
+                  {best.origins.map((o) => (
+                    <span key={o} className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">
+                      {o}
+                    </span>
+                  ))}
+                  {best.hasAgreement && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">
+                      ★ {best.origins.length} models agree
+                    </span>
+                  )}
+                  {tVotes && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full ml-auto ${
+                      tVotes.netVotes >= 2
+                        ? 'bg-green-100 text-green-700'
+                        : tVotes.netVotes < 0
+                        ? 'bg-red-100 text-red-600'
+                        : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {tVotes.netVotes > 0 ? '+' : ''}{tVotes.netVotes} votes
+                    </span>
+                  )}
+                  {!editMode && (
                     <button
-                      key={t.representativeId}
-                      onClick={() => setSelectedTranscriptionId(t.representativeId)}
-                      className={`w-full text-left rounded-xl border p-4 transition ${
-                        isSelected
-                          ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-300'
-                          : 'border-gray-200 bg-white hover:border-blue-200'
-                      }`}
+                      onClick={() => { setEditMode(true); setEditText(best.text); }}
+                      className="ml-auto text-xs text-blue-500 hover:text-blue-700 hover:underline"
                     >
-                      <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        {t.origins.map((o) => (
-                          <span key={o} className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">
-                            {o}
-                          </span>
-                        ))}
-                        {t.hasAgreement && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">
-                            ★ {t.origins.length} models agree
-                          </span>
-                        )}
-                        {tVotes && (
-                          <span className={`text-xs px-2 py-0.5 rounded-full ml-auto ${
-                            tVotes.netVotes >= 2
-                              ? 'bg-green-100 text-green-700'
-                              : tVotes.netVotes < 0
-                              ? 'bg-red-100 text-red-600'
-                              : 'bg-gray-100 text-gray-500'
-                          }`}>
-                            {tVotes.netVotes > 0 ? '+' : ''}{tVotes.netVotes} votes
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-800 leading-relaxed">{t.text}</p>
+                      Edit
                     </button>
-                  );
-                })
-              )}
-            </div>
-          )}
+                  )}
+                </div>
+
+                {editMode ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      rows={3}
+                      className="w-full border border-blue-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none"
+                      autoFocus
+                    />
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400 flex-1">
+                        {editText.trim() !== best.text
+                          ? 'Will save as a human correction'
+                          : 'No changes'}
+                      </span>
+                      <button
+                        onClick={() => { setEditMode(false); setEditText(''); }}
+                        className="text-xs text-gray-400 hover:text-gray-600"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-800 leading-relaxed">{best.text}</p>
+                )}
+              </div>
+            );
+          })()}
 
           {dimension === 'gender' && (
             <div className="bg-white rounded-2xl border border-gray-200 p-5">

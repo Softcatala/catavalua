@@ -62,6 +62,12 @@ export const api = {
 
   audioUrl: (clipId: string) => `${BASE}/audio/${clipId}`,
 
+  createTranscription: (data: { clipId: string; origin: string; text: string }) =>
+    request<import('./types').Transcription>('/transcriptions', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
   flagIrrelevant: (clipId: string, username: string) =>
     request<{ ok: boolean }>(
       `/clips/${clipId}/flag-irrelevant?username=${encodeURIComponent(username)}`,
