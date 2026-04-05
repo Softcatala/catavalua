@@ -57,27 +57,37 @@ export class AudioProxyService {
     res.status(statusCode);
 
     await new Promise<void>((resolve, reject) => {
-      const url = new URL(tarUrl);
-      const protocol = url.protocol === 'https:' ? https : http;
+      const fetchRange = (targetUrl: string, redirectsLeft = 3) => {
+        const url = new URL(targetUrl);
+        const protocol = url.protocol === 'https:' ? https : http;
 
-      const req = protocol.get(
-        tarUrl,
-        {
-          headers: {
-            Range: `bytes=${fetchStart}-${fetchEnd}`,
+        const req = protocol.get(
+          targetUrl,
+          { headers: { Range: `bytes=${fetchStart}-${fetchEnd}` } },
+          (upstream) => {
+            const code = upstream.statusCode ?? 0;
+            if (code >= 300 && code < 400 && upstream.headers.location) {
+              upstream.resume(); // drain to free socket
+              if (redirectsLeft > 0) {
+                fetchRange(upstream.headers.location, redirectsLeft - 1);
+              } else {
+                reject(new ServiceUnavailableException('Too many redirects fetching audio'));
+              }
+              return;
+            }
+            if (code >= 400) {
+              reject(new ServiceUnavailableException('Failed to fetch audio from upstream'));
+              return;
+            }
+            upstream.pipe(res);
+            upstream.on('end', resolve);
+            upstream.on('error', reject);
           },
-        },
-        (upstream) => {
-          if (upstream.statusCode && upstream.statusCode >= 400) {
-            reject(new ServiceUnavailableException('Failed to fetch audio from upstream'));
-            return;
-          }
-          upstream.pipe(res);
-          upstream.on('end', resolve);
-          upstream.on('error', reject);
-        },
-      );
-      req.on('error', reject);
+        );
+        req.on('error', reject);
+      };
+
+      fetchRange(tarUrl);
     });
   }
 }
