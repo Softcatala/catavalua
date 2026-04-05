@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ListPage } from './pages/ListPage';
 import { EvaluatePage } from './pages/EvaluatePage';
+import { ClipDetailPage } from './pages/ClipDetailPage';
 import { UsernameModal } from './components/UsernameModal';
 
 const USERNAME_KEY = 'catvoice:username';
@@ -26,19 +27,10 @@ function App() {
             path="/evaluate"
             element={username ? <EvaluatePage username={username} /> : <ListPage />}
           />
-          <Route path="/clip/:id" element={<ClipDetailRedirect />} />
+          <Route path="/clip/:id" element={<ClipDetailPage />} />
         </Routes>
       </div>
     </BrowserRouter>
-  );
-}
-
-// Simple redirect to evaluate page with specific clip — future enhancement
-function ClipDetailRedirect() {
-  return (
-    <div className="max-w-xl mx-auto px-4 py-12 text-center">
-      <p className="text-gray-500">Clip detail view coming soon. <a href="/" className="text-blue-600 underline">Back to list</a></p>
-    </div>
   );
 }
 
