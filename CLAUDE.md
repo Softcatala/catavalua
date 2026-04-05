@@ -95,6 +95,12 @@ From HuggingFace (via Parquet/API):
 - Skip: tracked in browser localStorage, not persisted
 - User identity: username set in localStorage on first visit
 
+## After Making Changes
+
+After completing any code change, always:
+1. `docker compose up -d --build` — rebuild and restart production containers
+2. `git commit` + `git push` — commit and push to remote
+
 ## Domains (production)
 
 - Frontend: `catvoice.internal.liam.cat`
