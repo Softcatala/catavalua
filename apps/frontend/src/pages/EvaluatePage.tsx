@@ -237,21 +237,18 @@ export function EvaluatePage({ username }: Props) {
 
             // No AI transcription yet, not in edit mode — show candidates as entry points
             if (!best && !editMode) {
-              const candidates = [state.clip.candidate1, state.clip.candidate2].filter(Boolean) as string[];
+              const candidate = state.clip.candidate1 ?? state.clip.candidate2;
               return (
                 <div className="space-y-3">
-                  <p className="text-sm text-gray-500">No AI transcription yet. Pick a candidate to use as a starting point:</p>
-                  {candidates.map((t, i) => (
+                  {candidate ? (
                     <button
-                      key={i}
-                      onClick={() => { setEditMode(true); setEditText(t); }}
+                      onClick={() => { setEditMode(true); setEditText(candidate); }}
                       className="w-full text-left bg-gray-50 border border-gray-200 hover:border-blue-300 rounded-xl p-4 text-sm text-gray-700 transition"
                     >
-                      <div className="text-xs text-gray-400 mb-1">Candidate {i + 1}</div>
-                      {t}
+                      <div className="text-xs text-gray-400 mb-1">No AI transcription yet — click to use as starting point</div>
+                      {candidate}
                     </button>
-                  ))}
-                  {candidates.length === 0 && (
+                  ) : (
                     <p className="text-sm text-gray-400">No transcriptions available for this clip.</p>
                   )}
                 </div>
