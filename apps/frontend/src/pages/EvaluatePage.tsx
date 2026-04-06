@@ -56,13 +56,21 @@ export function EvaluatePage({ username }: Props) {
   }
 
   function applyData(data: { clip: import('../types').Clip; uniqueTranscriptions: import('../types').UniqueTranscription[]; votes: VoteSummary[]; userVotes: Vote[] }) {
-    setState({
-      clip: data.clip,
-      uniqueTranscriptions: data.uniqueTranscriptions ?? [],
-      votes: data.votes,
-      userVotes: data.userVotes,
-    });
-    setSelectedTranscriptionId(data.uniqueTranscriptions?.[0]?.representativeId ?? null);
+    const uniqueTranscriptions = data.uniqueTranscriptions ?? [];
+
+    // If the user already voted on a specific transcription, put that one first
+    const priorTxVote = data.userVotes.find((v) => v.dimension === 'transcription');
+    let ordered = uniqueTranscriptions;
+    if (priorTxVote?.targetId) {
+      const priorId = Number(priorTxVote.targetId);
+      const idx = uniqueTranscriptions.findIndex((t) => t.representativeId === priorId);
+      if (idx > 0) {
+        ordered = [uniqueTranscriptions[idx], ...uniqueTranscriptions.slice(0, idx), ...uniqueTranscriptions.slice(idx + 1)];
+      }
+    }
+
+    setState({ clip: data.clip, uniqueTranscriptions: ordered, votes: data.votes, userVotes: data.userVotes });
+    setSelectedTranscriptionId(ordered[0]?.representativeId ?? null);
     setDone(false);
   }
 
