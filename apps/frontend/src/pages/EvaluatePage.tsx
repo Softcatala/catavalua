@@ -234,24 +234,62 @@ export function EvaluatePage({ username }: Props) {
           {/* Dimension-specific content */}
           {dimension === 'transcription' && (() => {
             const best = state.uniqueTranscriptions[0];
-            if (!best) {
+
+            // No AI transcription yet, not in edit mode — show candidates as entry points
+            if (!best && !editMode) {
+              const candidates = [state.clip.candidate1, state.clip.candidate2].filter(Boolean) as string[];
               return (
                 <div className="space-y-3">
-                  {[state.clip.candidate1, state.clip.candidate2].filter(Boolean).map((t, i) => (
-                    <div key={i} className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
+                  <p className="text-sm text-gray-500">No AI transcription yet. Pick a candidate to use as a starting point:</p>
+                  {candidates.map((t, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setEditMode(true); setEditText(t); }}
+                      className="w-full text-left bg-gray-50 border border-gray-200 hover:border-blue-300 rounded-xl p-4 text-sm text-gray-700 transition"
+                    >
                       <div className="text-xs text-gray-400 mb-1">Candidate {i + 1}</div>
                       {t}
-                    </div>
+                    </button>
                   ))}
-                  <p className="text-sm text-gray-400">No AI-corrected transcriptions yet for this clip.</p>
+                  {candidates.length === 0 && (
+                    <p className="text-sm text-gray-400">No transcriptions available for this clip.</p>
+                  )}
                 </div>
               );
             }
 
+            // Edit mode (either editing best or a candidate)
+            if (editMode) {
+              return (
+                <div className="bg-white rounded-2xl border border-blue-200 p-5">
+                  <textarea
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    rows={3}
+                    className="w-full border border-blue-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none"
+                    autoFocus
+                  />
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xs text-gray-400 flex-1">
+                      {!best || editText.trim() !== best.text
+                        ? 'Will save as a human correction'
+                        : 'No changes'}
+                    </span>
+                    <button
+                      onClick={() => { setEditMode(false); setEditText(''); }}
+                      className="text-xs text-gray-400 hover:text-gray-600"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
+            // Has best transcription, not editing
             const tVotes = state.votes.find(
               (v) => v.dimension === 'transcription' && v.targetId === String(best.representativeId),
             );
-
             return (
               <div className="bg-white rounded-2xl border border-gray-200 p-5">
                 <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -276,42 +314,14 @@ export function EvaluatePage({ username }: Props) {
                       {tVotes.netVotes > 0 ? '+' : ''}{tVotes.netVotes} votes
                     </span>
                   )}
-                  {!editMode && (
-                    <button
-                      onClick={() => { setEditMode(true); setEditText(best.text); }}
-                      className="ml-auto text-xs text-blue-500 hover:text-blue-700 hover:underline"
-                    >
-                      Edit
-                    </button>
-                  )}
+                  <button
+                    onClick={() => { setEditMode(true); setEditText(best.text); }}
+                    className="ml-auto text-xs text-blue-500 hover:text-blue-700 hover:underline"
+                  >
+                    Edit
+                  </button>
                 </div>
-
-                {editMode ? (
-                  <div className="space-y-2">
-                    <textarea
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
-                      rows={3}
-                      className="w-full border border-blue-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none"
-                      autoFocus
-                    />
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-400 flex-1">
-                        {editText.trim() !== best.text
-                          ? 'Will save as a human correction'
-                          : 'No changes'}
-                      </span>
-                      <button
-                        onClick={() => { setEditMode(false); setEditText(''); }}
-                        className="text-xs text-gray-400 hover:text-gray-600"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-800 leading-relaxed">{best.text}</p>
-                )}
+                <p className="text-sm text-gray-800 leading-relaxed">{best.text}</p>
               </div>
             );
           })()}
@@ -364,14 +374,14 @@ export function EvaluatePage({ username }: Props) {
           <div className="flex gap-3">
             <button
               onClick={() => vote(1)}
-              disabled={voting || (dimension === 'transcription' && selectedTranscriptionId == null) || (dimension === 'dialect' && !state.clip.detectedDialect)}
+              disabled={voting || (dimension === 'transcription' && selectedTranscriptionId == null && !(editMode && editText.trim())) || (dimension === 'dialect' && !state.clip.detectedDialect)}
               className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
             >
               👍 Correct
             </button>
             <button
               onClick={() => vote(-1)}
-              disabled={voting || (dimension === 'transcription' && selectedTranscriptionId == null) || (dimension === 'dialect' && !state.clip.detectedDialect)}
+              disabled={voting || (dimension === 'transcription' && selectedTranscriptionId == null && !(editMode && editText.trim())) || (dimension === 'dialect' && !state.clip.detectedDialect)}
               className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
             >
               👎 Incorrect
