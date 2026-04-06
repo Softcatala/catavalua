@@ -26,6 +26,14 @@ export const api = {
 
   getTranscriptions: (id: string) => request<Transcription[]>(`/clips/${id}/transcriptions`),
 
+  evaluateClip: (clipId: string, username: string) =>
+    request<{
+      clip: import('./types').Clip;
+      uniqueTranscriptions: import('./types').UniqueTranscription[];
+      votes: VoteSummary[];
+      userVotes: Vote[];
+    }>(`/evaluate/clip/${clipId}?username=${encodeURIComponent(username)}`),
+
   evaluateNext: (username: string, dimension: string, skipIds: string[]) =>
     request<{
       clip: import('./types').Clip;

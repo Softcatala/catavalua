@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { AudioPlayer } from '../components/AudioPlayer';
 import type { Clip, UniqueTranscription, VoteSummary, Vote } from '../types';
@@ -29,6 +29,10 @@ interface Props {
 }
 
 export function EvaluatePage({ username }: Props) {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentClipId = searchParams.get('clipId');
+
   const [dimension, setDimension] = useState<Dimension>('transcription');
   const [state, setState] = useState<EvalState | null>(null);
   const [done, setDone] = useState(false);
@@ -38,15 +42,33 @@ export function EvaluatePage({ username }: Props) {
   const [selectedTranscriptionId, setSelectedTranscriptionId] = useState<number | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [editText, setEditText] = useState('');
-  const loadCountRef = useRef(0);
+  const [copied, setCopied] = useState(false);
+  // Prevents double-fetch when we push a new clipId to the URL ourselves
+  const selfNavRef = useRef(false);
 
-  const load = useCallback(async (skipAdditional: string[] = []) => {
-    setLoading(true);
+  function resetUi() {
     setVoting(false);
     setEditMode(false);
     setEditText('');
     setError('');
     setSelectedTranscriptionId(null);
+    setCopied(false);
+  }
+
+  function applyData(data: { clip: import('../types').Clip; uniqueTranscriptions: import('../types').UniqueTranscription[]; votes: VoteSummary[]; userVotes: Vote[] }) {
+    setState({
+      clip: data.clip,
+      uniqueTranscriptions: data.uniqueTranscriptions ?? [],
+      votes: data.votes,
+      userVotes: data.userVotes,
+    });
+    setSelectedTranscriptionId(data.uniqueTranscriptions?.[0]?.representativeId ?? null);
+    setDone(false);
+  }
+
+  const loadNext = useCallback(async (skipAdditional: string[] = []) => {
+    setLoading(true);
+    resetUi();
     const skipped = [...getSkipped(), ...skipAdditional];
     try {
       const data = await api.evaluateNext(username, dimension, skipped);
@@ -54,34 +76,56 @@ export function EvaluatePage({ username }: Props) {
         setDone(true);
         setState(null);
       } else {
-        setDone(false);
-        setState({
-          clip: data.clip,
-          uniqueTranscriptions: data.uniqueTranscriptions ?? [],
-          votes: data.votes,
-          userVotes: data.userVotes,
-        });
-        // Default: select the first (agreed-upon ones come first)
-        const first = data.uniqueTranscriptions?.[0];
-        setSelectedTranscriptionId(first?.representativeId ?? null);
+        applyData(data);
+        selfNavRef.current = true;
+        setSearchParams({ clipId: data.clip.clipId });
       }
     } catch (e) {
       setError(String(e));
     } finally {
       setLoading(false);
     }
-  }, [username, dimension]);
+  }, [username, dimension, setSearchParams]);
 
-  // Load on mount and on dimension change
+  const loadClip = useCallback(async (clipId: string) => {
+    setLoading(true);
+    resetUi();
+    try {
+      const data = await api.evaluateClip(clipId, username);
+      applyData(data);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [username]);
+
+  // React to URL clipId changes (browser back/forward navigation)
   useEffect(() => {
-    loadCountRef.current += 1;
-    load();
-  }, [load]);
+    if (selfNavRef.current) {
+      selfNavRef.current = false;
+      return;
+    }
+    if (currentClipId) {
+      loadClip(currentClipId);
+    } else {
+      loadNext();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentClipId]);
+
+  // When dimension changes, load a fresh next clip
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    if (!mountedRef.current) { mountedRef.current = true; return; }
+    loadNext();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dimension]);
 
   const skip = () => {
     if (state) {
       addSkipped(state.clip.clipId);
-      load([state.clip.clipId]);
+      loadNext([state.clip.clipId]);
     }
   };
 
@@ -90,7 +134,7 @@ export function EvaluatePage({ username }: Props) {
     setVoting(true);
     try {
       await api.flagIrrelevant(state.clip.clipId, username);
-      load();
+      loadNext();
     } catch (e) {
       setError(String(e));
       setVoting(false);
@@ -124,7 +168,7 @@ export function EvaluatePage({ username }: Props) {
       }
 
       await api.castVote({ clipId: state.clip.clipId, dimension, targetId, username, value });
-      load();
+      loadNext();
     } catch (e) {
       setError(String(e));
       setVoting(false);
@@ -140,6 +184,12 @@ export function EvaluatePage({ username }: Props) {
   const bestTx = state?.uniqueTranscriptions[0];
   const activeText = editMode ? editText : (bestTx?.text ?? state?.clip.candidate1 ?? state?.clip.candidate2 ?? '');
 
+  const copyClipUrl = (clipId: string) => {
+    navigator.clipboard.writeText(`${window.location.origin}/clip/${clipId}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64 text-gray-400">Loading…</div>
@@ -152,7 +202,7 @@ export function EvaluatePage({ username }: Props) {
         <div className="text-5xl mb-4">🎉</div>
         <h2 className="text-2xl font-bold text-gray-800 mb-2">All done!</h2>
         <p className="text-gray-500 mb-6">You've evaluated all clips for this dimension. Come back later for more.</p>
-        <button onClick={() => load()} className="btn-primary mr-3">Start over</button>
+        <button onClick={() => loadNext()} className="btn-primary mr-3">Start over</button>
         <Link to="/" className="btn-secondary">Back to list</Link>
       </div>
     );
@@ -162,7 +212,20 @@ export function EvaluatePage({ username }: Props) {
     <div className="max-w-2xl mx-auto px-4 py-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <Link to="/" className="text-blue-600 hover:underline text-sm">← Back to list</Link>
+        <div className="flex items-center gap-2">
+          <Link to="/" className="text-blue-600 hover:underline text-sm">← List</Link>
+          <span className="text-gray-300">|</span>
+          <button
+            onClick={() => navigate(-1)}
+            className="text-gray-500 hover:text-gray-800 text-lg leading-none"
+            title="Previous clip"
+          >‹</button>
+          <button
+            onClick={() => navigate(1)}
+            className="text-gray-500 hover:text-gray-800 text-lg leading-none"
+            title="Next clip"
+          >›</button>
+        </div>
         <div className="text-sm text-gray-500">Evaluating as <strong>{username}</strong></div>
       </div>
 
@@ -190,7 +253,13 @@ export function EvaluatePage({ username }: Props) {
           {/* Clip info */}
           <div className="bg-white rounded-2xl border border-gray-200 p-5">
             <div className="flex items-center gap-3 mb-4 flex-wrap">
-              <span className="text-xs font-mono text-gray-400">{state.clip.clipId}</span>
+              <button
+                onClick={() => copyClipUrl(state.clip.clipId)}
+                className="text-xs font-mono text-gray-400 hover:text-blue-500 transition"
+                title="Copy link to clip detail"
+              >
+                {copied ? '✓ copied' : state.clip.clipId}
+              </button>
               {state.clip.gender && (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
                   {state.clip.gender}

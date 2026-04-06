@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, Param, NotFoundException } from '@nestjs/common';
 import { ClipService } from '../service/clip.service';
 import { TranscriptionService } from '../service/transcription.service';
 import { VoteService } from '../service/vote.service';
@@ -47,6 +47,20 @@ export class EvaluateController {
     private readonly transcriptionService: TranscriptionService,
     private readonly voteService: VoteService,
   ) {}
+
+  @Get('clip/:clipId')
+  async forClip(
+    @Param('clipId') clipId: string,
+    @Query('username') username = '',
+  ) {
+    const result = await this.clipService.findOne(clipId).catch(() => null);
+    if (!result) throw new NotFoundException(`Clip ${clipId} not found`);
+    const rawTranscriptions = await this.transcriptionService.findByClip(clipId);
+    const uniqueTranscriptions = deduplicateTranscriptions(rawTranscriptions);
+    const votes = await this.voteService.summaryForClip(clipId);
+    const userVotes = username ? await this.voteService.userVotesForClip(clipId, username) : [];
+    return { clip: result.clip, uniqueTranscriptions, votes, userVotes };
+  }
 
   @Get('next')
   async next(
