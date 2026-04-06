@@ -243,25 +243,25 @@ def save_index(index: dict[str, dict]) -> None:
 # ---------------------------------------------------------------------------
 
 def iter_dataset(offset: int = 0, page_size: int = 100):
-    delay = 5
     while True:
         url = f"{HF_API}&offset={offset}&length={page_size}"
-        try:
-            data = http_get_json(url)
-            delay = 5  # reset on success
-        except urllib.error.HTTPError as e:
-            if e.code in (429, 500, 502, 503, 504):
-                log.warning("Dataset API transient error at offset %d (%s) — retrying in %ds…", offset, e, delay)
+        delay = 5
+        while True:  # retry loop for this page
+            try:
+                data = http_get_json(url)
+                break  # success — move on
+            except urllib.error.HTTPError as e:
+                if e.code in (429, 500, 502, 503, 504):
+                    log.warning("Dataset API transient error at offset %d (%s) — retrying in %ds…", offset, e, delay)
+                    time.sleep(delay)
+                    delay = min(delay * 2, 300)
+                    continue
+                log.error("Dataset API permanent error at offset %d: %s — stopping.", offset, e)
+                return
+            except Exception as e:
+                log.warning("Dataset API error at offset %d: %s — retrying in %ds…", offset, e, delay)
                 time.sleep(delay)
                 delay = min(delay * 2, 300)
-                continue
-            log.error("Dataset API error at offset %d: %s — stopping.", offset, e)
-            return
-        except Exception as e:
-            log.warning("Dataset API error at offset %d: %s — retrying in %ds…", offset, e, delay)
-            time.sleep(delay)
-            delay = min(delay * 2, 300)
-            continue
         rows = data.get("rows", [])
         if not rows:
             return
