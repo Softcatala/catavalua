@@ -93,13 +93,34 @@ def http_get_json(url: str, timeout: int = 30) -> dict | list:
         return json.loads(resp.read())
 
 
-def http_post_json(url: str, payload: dict, timeout: int = 15) -> dict:
-    data = json.dumps(payload).encode()
-    req = urllib.request.Request(
-        url, data=data, headers={"Content-Type": "application/json"}
-    )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return json.loads(resp.read())
+def http_post_json(url: str, payload: dict, timeout: int = 15, retries: int = 3) -> dict:
+    delay = 5
+    last_exc: Exception = RuntimeError("no attempts made")
+    for attempt in range(1, retries + 1):
+        try:
+            data = json.dumps(payload).encode()
+            req = urllib.request.Request(
+                url, data=data, headers={"Content-Type": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.loads(resp.read())
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 500, 502, 503, 504) and attempt < retries:
+                log.warning("POST %s transient error (%s) — retrying in %ds…", url, e, delay)
+                time.sleep(delay)
+                delay = min(delay * 2, 60)
+                last_exc = e
+                continue
+            raise
+        except Exception as e:
+            if attempt < retries:
+                log.warning("POST %s error (%s) — retrying in %ds…", url, e, delay)
+                time.sleep(delay)
+                delay = min(delay * 2, 60)
+                last_exc = e
+                continue
+            raise
+    raise last_exc
 
 
 # ---------------------------------------------------------------------------
@@ -222,13 +243,25 @@ def save_index(index: dict[str, dict]) -> None:
 # ---------------------------------------------------------------------------
 
 def iter_dataset(offset: int = 0, page_size: int = 100):
+    delay = 5
     while True:
         url = f"{HF_API}&offset={offset}&length={page_size}"
         try:
             data = http_get_json(url)
-        except Exception as e:
+            delay = 5  # reset on success
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 500, 502, 503, 504):
+                log.warning("Dataset API transient error at offset %d (%s) — retrying in %ds…", offset, e, delay)
+                time.sleep(delay)
+                delay = min(delay * 2, 300)
+                continue
             log.error("Dataset API error at offset %d: %s — stopping.", offset, e)
             return
+        except Exception as e:
+            log.warning("Dataset API error at offset %d: %s — retrying in %ds…", offset, e, delay)
+            time.sleep(delay)
+            delay = min(delay * 2, 300)
+            continue
         rows = data.get("rows", [])
         if not rows:
             return
