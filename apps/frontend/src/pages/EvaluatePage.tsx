@@ -104,13 +104,15 @@ export function EvaluatePage({ username }: Props) {
       let targetId: string | undefined;
 
       if (dimension === 'transcription') {
+        const best = state.uniqueTranscriptions[0];
         let voteTargetId = selectedTranscriptionId;
-        // If in edit mode and text changed, save as a new human transcription first
-        if (editMode && editText.trim() && editText.trim() !== state.uniqueTranscriptions[0]?.text) {
+        const submittedText = editMode ? editText.trim() : (best?.text ?? state.clip.candidate1 ?? state.clip.candidate2 ?? '');
+        // Create a new transcription record whenever the text differs from best (edit) or there's no best (candidate)
+        if (submittedText && (!best || submittedText !== best.text)) {
           const newT = await api.createTranscription({
             clipId: state.clip.clipId,
             origin: 'human',
-            text: editText.trim(),
+            text: submittedText,
           });
           voteTargetId = newT.id;
         }
@@ -134,6 +136,9 @@ export function EvaluatePage({ username }: Props) {
   const netVotes = state?.votes
     .filter((v) => v.dimension === dimension)
     .reduce((s, v) => s + v.netVotes, 0) ?? 0;
+
+  const bestTx = state?.uniqueTranscriptions[0];
+  const activeText = editMode ? editText : (bestTx?.text ?? state?.clip.candidate1 ?? state?.clip.candidate2 ?? '');
 
   if (loading) {
     return (
@@ -233,29 +238,14 @@ export function EvaluatePage({ username }: Props) {
 
           {/* Dimension-specific content */}
           {dimension === 'transcription' && (() => {
-            const best = state.uniqueTranscriptions[0];
-
-            // No AI transcription yet, not in edit mode — show candidates as entry points
-            if (!best && !editMode) {
-              const candidate = state.clip.candidate1 ?? state.clip.candidate2;
-              return (
-                <div className="space-y-3">
-                  {candidate ? (
-                    <button
-                      onClick={() => { setEditMode(true); setEditText(candidate); }}
-                      className="w-full text-left bg-gray-50 border border-gray-200 hover:border-blue-300 rounded-xl p-4 text-sm text-gray-700 transition"
-                    >
-                      <div className="text-xs text-gray-400 mb-1">No AI transcription yet — click to use as starting point</div>
-                      {candidate}
-                    </button>
-                  ) : (
-                    <p className="text-sm text-gray-400">No transcriptions available for this clip.</p>
-                  )}
-                </div>
-              );
+            if (!activeText) {
+              return <p className="text-sm text-gray-400">No transcription available for this clip.</p>;
             }
 
-            // Edit mode (either editing best or a candidate)
+            const tVotes = bestTx
+              ? state.votes.find((v) => v.dimension === 'transcription' && v.targetId === String(bestTx.representativeId))
+              : null;
+
             if (editMode) {
               return (
                 <div className="bg-white rounded-2xl border border-blue-200 p-5">
@@ -268,7 +258,7 @@ export function EvaluatePage({ username }: Props) {
                   />
                   <div className="flex items-center gap-2 mt-2">
                     <span className="text-xs text-gray-400 flex-1">
-                      {!best || editText.trim() !== best.text
+                      {editText.trim() !== (bestTx?.text ?? activeText)
                         ? 'Will save as a human correction'
                         : 'No changes'}
                     </span>
@@ -283,42 +273,42 @@ export function EvaluatePage({ username }: Props) {
               );
             }
 
-            // Has best transcription, not editing
-            const tVotes = state.votes.find(
-              (v) => v.dimension === 'transcription' && v.targetId === String(best.representativeId),
-            );
             return (
               <div className="bg-white rounded-2xl border border-gray-200 p-5">
-                <div className="flex items-center gap-2 mb-3 flex-wrap">
-                  {best.origins.map((o) => (
-                    <span key={o} className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">
-                      {o}
-                    </span>
-                  ))}
-                  {best.hasAgreement && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">
-                      ★ {best.origins.length} models agree
-                    </span>
-                  )}
-                  {tVotes && (
-                    <span className={`text-xs px-2 py-0.5 rounded-full ml-auto ${
-                      tVotes.netVotes >= 2
-                        ? 'bg-green-100 text-green-700'
-                        : tVotes.netVotes < 0
-                        ? 'bg-red-100 text-red-600'
-                        : 'bg-gray-100 text-gray-500'
-                    }`}>
-                      {tVotes.netVotes > 0 ? '+' : ''}{tVotes.netVotes} votes
-                    </span>
-                  )}
+                {(bestTx || tVotes) && (
+                  <div className="flex items-center gap-2 mb-3 flex-wrap">
+                    {bestTx?.origins.map((o) => (
+                      <span key={o} className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">
+                        {o}
+                      </span>
+                    ))}
+                    {bestTx?.hasAgreement && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">
+                        ★ {bestTx.origins.length} models agree
+                      </span>
+                    )}
+                    {tVotes && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full ml-auto ${
+                        tVotes.netVotes >= 2
+                          ? 'bg-green-100 text-green-700'
+                          : tVotes.netVotes < 0
+                          ? 'bg-red-100 text-red-600'
+                          : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {tVotes.netVotes > 0 ? '+' : ''}{tVotes.netVotes} votes
+                      </span>
+                    )}
+                  </div>
+                )}
+                <div className="flex items-start gap-3">
+                  <p className="text-sm text-gray-800 leading-relaxed flex-1">{activeText}</p>
                   <button
-                    onClick={() => { setEditMode(true); setEditText(best.text); }}
-                    className="ml-auto text-xs text-blue-500 hover:text-blue-700 hover:underline"
+                    onClick={() => { setEditMode(true); setEditText(activeText); }}
+                    className="flex-shrink-0 text-xs text-blue-500 hover:text-blue-700 hover:underline mt-0.5"
                   >
                     Edit
                   </button>
                 </div>
-                <p className="text-sm text-gray-800 leading-relaxed">{best.text}</p>
               </div>
             );
           })()}
@@ -371,14 +361,14 @@ export function EvaluatePage({ username }: Props) {
           <div className="flex gap-3">
             <button
               onClick={() => vote(1)}
-              disabled={voting || (dimension === 'transcription' && selectedTranscriptionId == null && !(editMode && editText.trim())) || (dimension === 'dialect' && !state.clip.detectedDialect)}
+              disabled={voting || (dimension === 'transcription' && !activeText.trim()) || (dimension === 'dialect' && !state.clip.detectedDialect)}
               className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
             >
               👍 Correct
             </button>
             <button
               onClick={() => vote(-1)}
-              disabled={voting || (dimension === 'transcription' && selectedTranscriptionId == null && !(editMode && editText.trim())) || (dimension === 'dialect' && !state.clip.detectedDialect)}
+              disabled={voting || (dimension === 'transcription' && !activeText.trim()) || (dimension === 'dialect' && !state.clip.detectedDialect)}
               className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
             >
               👎 Incorrect
