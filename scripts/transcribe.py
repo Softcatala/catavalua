@@ -391,7 +391,7 @@ If in Catalan, produce a verbatim transcription of what is actually spoken:
 - Identify the Catalan dialect variant if possible
 
 Return:
-{{"is_catalan": true, "detected_language": "catalan", "corrected_transcription": "...", "detected_gender": "male|female|unknown", "dialect_notes": "central|valencian|balearic|northwestern|alguerès|unknown", "confidence": "high|medium|low"}}
+{{"is_catalan": true, "detected_language": "catalan", "corrected_transcription": "...", "detected_gender": "male|female|unknown", "dialect_notes": "central|valencian|balearic|northwestern|alguerès|septentrional|unknown", "confidence": "high|medium|low"}}
 
 Respond ONLY with JSON, no markdown.
 """
