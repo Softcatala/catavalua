@@ -68,6 +68,9 @@ export const api = {
       method: 'DELETE',
     }),
 
+  getVoteStats: () =>
+    request<{ dimension: string; evaluated: number; golden: number }[]>('/votes/stats'),
+
   audioUrl: (clipId: string) => `${BASE}/audio/${clipId}`,
 
   createTranscription: (data: { clipId: string; origin: string; text: string }) =>

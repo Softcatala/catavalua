@@ -66,4 +66,31 @@ export class VoteService {
   async userVotesForClip(clipId: string, username: string): Promise<Vote[]> {
     return this.repo.find({ where: { clipId, username } });
   }
+
+  async stats(): Promise<{ dimension: string; evaluated: number; golden: number }[]> {
+    // evaluated = clips with at least one vote in this dimension
+    // golden = clips where net votes >= 2
+    const rows = await this.repo
+      .createQueryBuilder('v')
+      .select('v.dimension', 'dimension')
+      .addSelect('v.clip_id', 'clipId')
+      .addSelect('SUM(v.value)', 'net')
+      .groupBy('v.dimension')
+      .addGroupBy('v.clip_id')
+      .getRawMany<{ dimension: string; clipId: string; net: string }>();
+
+    const map: Record<string, { evaluated: number; golden: number }> = {};
+    for (const row of rows) {
+      const d = row.dimension;
+      if (!map[d]) map[d] = { evaluated: 0, golden: 0 };
+      map[d].evaluated++;
+      if (Number(row.net) >= 2) map[d].golden++;
+    }
+
+    return Object.entries(map).map(([dimension, { evaluated, golden }]) => ({
+      dimension,
+      evaluated,
+      golden,
+    }));
+  }
 }

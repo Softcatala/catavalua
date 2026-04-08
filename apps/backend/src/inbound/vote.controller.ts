@@ -36,4 +36,9 @@ export class VoteController {
   async userVotes(@Param('clipId') clipId: string, @Param('username') username: string) {
     return this.service.userVotesForClip(clipId, username);
   }
+
+  @Get('stats')
+  async stats() {
+    return this.service.stats();
+  }
 }

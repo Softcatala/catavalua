@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { api } from '../api';
 import type { ClipWithBest } from '../types';
 
+interface DimStat { dimension: string; evaluated: number; golden: number }
+
 export function ListPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -10,6 +12,11 @@ export function ListPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [stats, setStats] = useState<DimStat[]>([]);
+
+  useEffect(() => {
+    api.getVoteStats().then(setStats).catch(() => {});
+  }, []);
 
   const LIMIT = 20;
 
@@ -44,6 +51,28 @@ export function ListPage() {
           Evaluate →
         </Link>
       </div>
+
+      {stats.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+          {stats.map(({ dimension, evaluated, golden }) => (
+            <div key={dimension} className="bg-white border border-gray-200 rounded-xl p-4">
+              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                {dimension}
+              </div>
+              <div className="flex items-end gap-3">
+                <div>
+                  <div className="text-2xl font-bold text-gray-800">{evaluated.toLocaleString()}</div>
+                  <div className="text-xs text-gray-400">evaluated</div>
+                </div>
+                <div className="mb-0.5">
+                  <div className="text-lg font-semibold text-green-600">{golden.toLocaleString()}</div>
+                  <div className="text-xs text-gray-400">golden</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="relative mb-4">
         <input
