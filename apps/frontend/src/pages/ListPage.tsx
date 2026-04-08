@@ -4,6 +4,7 @@ import { api } from '../api';
 import type { ClipWithBest } from '../types';
 
 interface DimStat { dimension: string; evaluated: number; golden: number }
+interface Stats { dimensions: DimStat[]; flaggedIrrelevant: number }
 
 export function ListPage() {
   const [search, setSearch] = useState('');
@@ -12,7 +13,7 @@ export function ListPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [stats, setStats] = useState<DimStat[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
     api.getVoteStats().then(setStats).catch(() => {});
@@ -52,9 +53,9 @@ export function ListPage() {
         </Link>
       </div>
 
-      {stats.length > 0 && (
+      {stats && (stats.dimensions.length > 0 || stats.flaggedIrrelevant > 0) && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-          {stats.map(({ dimension, evaluated, golden }) => (
+          {stats.dimensions.map(({ dimension, evaluated, golden }) => (
             <div key={dimension} className="bg-white border border-gray-200 rounded-xl p-4">
               <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
                 {dimension}
@@ -71,6 +72,17 @@ export function ListPage() {
               </div>
             </div>
           ))}
+          {stats.flaggedIrrelevant > 0 && (
+            <div className="bg-white border border-orange-100 rounded-xl p-4">
+              <div className="text-xs font-medium text-orange-400 uppercase tracking-wide mb-2">
+                irrelevant
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-orange-500">{stats.flaggedIrrelevant.toLocaleString()}</div>
+                <div className="text-xs text-gray-400">flagged</div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

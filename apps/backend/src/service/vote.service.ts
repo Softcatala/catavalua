@@ -67,9 +67,10 @@ export class VoteService {
     return this.repo.find({ where: { clipId, username } });
   }
 
-  async stats(): Promise<{ dimension: string; evaluated: number; golden: number }[]> {
-    // evaluated = clips with at least one vote in this dimension
-    // golden = clips where net votes >= 2
+  async stats(): Promise<{
+    dimensions: { dimension: string; evaluated: number; golden: number }[];
+    flaggedIrrelevant: number;
+  }> {
     const rows = await this.repo
       .createQueryBuilder('v')
       .select('v.dimension', 'dimension')
@@ -80,17 +81,25 @@ export class VoteService {
       .getRawMany<{ dimension: string; clipId: string; net: string }>();
 
     const map: Record<string, { evaluated: number; golden: number }> = {};
+    let flaggedIrrelevant = 0;
+
     for (const row of rows) {
       const d = row.dimension;
+      if (d === 'relevance') {
+        flaggedIrrelevant++;
+        continue;
+      }
       if (!map[d]) map[d] = { evaluated: 0, golden: 0 };
       map[d].evaluated++;
       if (Number(row.net) >= 2) map[d].golden++;
     }
 
-    return Object.entries(map).map(([dimension, { evaluated, golden }]) => ({
+    const dimensions = Object.entries(map).map(([dimension, { evaluated, golden }]) => ({
       dimension,
       evaluated,
       golden,
     }));
+
+    return { dimensions, flaggedIrrelevant };
   }
 }

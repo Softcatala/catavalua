@@ -69,7 +69,10 @@ export const api = {
     }),
 
   getVoteStats: () =>
-    request<{ dimension: string; evaluated: number; golden: number }[]>('/votes/stats'),
+    request<{
+      dimensions: { dimension: string; evaluated: number; golden: number }[];
+      flaggedIrrelevant: number;
+    }>('/votes/stats'),
 
   audioUrl: (clipId: string) => `${BASE}/audio/${clipId}`,
 
