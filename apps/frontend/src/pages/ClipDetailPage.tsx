@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { AudioPlayer } from '../components/AudioPlayer';
 import type { ClipWithBest, Transcription, VoteSummary } from '../types';
@@ -29,6 +30,7 @@ interface State {
 
 export function ClipDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { t } = useTranslation();
   const [state, setState] = useState<State | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -50,14 +52,14 @@ export function ClipDetailPage() {
   }, [id]);
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64 text-gray-400">Loading…</div>;
+    return <div className="flex items-center justify-center h-64 text-gray-400">{t('detail.loading')}</div>;
   }
 
   if (error) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-12">
         <div className="text-red-500 bg-red-50 rounded-lg p-4 mb-4">{error}</div>
-        <Link to="/" className="text-blue-600 hover:underline text-sm">← Back to list</Link>
+        <Link to="/" className="text-blue-600 hover:underline text-sm">{t('detail.backToList')}</Link>
       </div>
     );
   }
@@ -78,8 +80,8 @@ export function ClipDetailPage() {
 
   // Candidates as pseudo-transcription rows (not in the transcriptions list)
   const candidates = [
-    clip.candidate1 && { label: 'Candidate 1', text: clip.candidate1 },
-    clip.candidate2 && { label: 'Candidate 2', text: clip.candidate2 },
+    clip.candidate1 && { label: t('detail.candidate1'), text: clip.candidate1 },
+    clip.candidate2 && { label: t('detail.candidate2'), text: clip.candidate2 },
   ].filter(Boolean) as { label: string; text: string }[];
 
   // AI / human transcriptions (everything else)
@@ -94,12 +96,12 @@ export function ClipDetailPage() {
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <Link to="/" className="text-blue-600 hover:underline text-sm">← Back to list</Link>
+        <Link to="/" className="text-blue-600 hover:underline text-sm">{t('detail.backToList')}</Link>
         <Link
           to="/evaluate"
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition"
         >
-          Evaluate →
+          {t('detail.evaluate')}
         </Link>
       </div>
 
@@ -122,7 +124,7 @@ export function ClipDetailPage() {
             </span>
           )}
           {clip.isRelevant === false && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">✗ flagged irrelevant</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">✗ {t('detail.flaggedIrrelevant')}</span>
           )}
           {clip.tarFile != null && (
             <span className="text-xs text-gray-300">tar-{clip.tarFile}</span>
@@ -134,7 +136,7 @@ export function ClipDetailPage() {
           <AudioPlayer src={api.audioUrl(clip.clipId)} />
         ) : (
           <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-400 text-center">
-            Audio not indexed yet.
+            {t('detail.audioNotIndexed')}
           </div>
         )}
 
@@ -145,51 +147,51 @@ export function ClipDetailPage() {
             rel="noreferrer"
             className="inline-flex items-center gap-1 text-xs text-red-600 hover:underline"
           >
-            ▶ Open source on YouTube
+            {t('detail.openYouTube')}
           </a>
         )}
       </div>
 
       {/* Validation feedback */}
       <section>
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Validation</h2>
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">{t('detail.validation')}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Gender */}
           <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="text-xs text-gray-400 mb-1">Gender</div>
+            <div className="text-xs text-gray-400 mb-1">{t('detail.gender')}</div>
             <div className="font-semibold text-gray-800 mb-2">{clip.gender ?? '—'}</div>
             {genderVote ? (
               <span className={`text-xs px-2 py-0.5 rounded-full inline-block ${netVotesBadge(genderVote.netVotes, genderVote.isGolden)}`}>
-                {genderVote.netVotes > 0 ? '+' : ''}{genderVote.netVotes} votes
+                {genderVote.netVotes > 0 ? '+' : ''}{t('detail.votes', { net: genderVote.netVotes })}
                 {genderVote.isGolden && ' ✓'}
               </span>
             ) : (
-              <span className="text-xs text-gray-300">no votes yet</span>
+              <span className="text-xs text-gray-300">{t('detail.noVotesYet')}</span>
             )}
           </div>
 
           {/* Dialect */}
           <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="text-xs text-gray-400 mb-1">Dialect</div>
+            <div className="text-xs text-gray-400 mb-1">{t('detail.dialect')}</div>
             <div className="font-semibold text-gray-800 mb-2">{clip.detectedDialect ?? '—'}</div>
             {dialectVote ? (
               <span className={`text-xs px-2 py-0.5 rounded-full inline-block ${netVotesBadge(dialectVote.netVotes, dialectVote.isGolden)}`}>
-                {dialectVote.netVotes > 0 ? '+' : ''}{dialectVote.netVotes} votes
+                {dialectVote.netVotes > 0 ? '+' : ''}{t('detail.votes', { net: dialectVote.netVotes })}
                 {dialectVote.isGolden && ' ✓'}
               </span>
             ) : (
-              <span className="text-xs text-gray-300">no votes yet</span>
+              <span className="text-xs text-gray-300">{t('detail.noVotesYet')}</span>
             )}
           </div>
 
           {/* Language */}
           <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="text-xs text-gray-400 mb-1">Language</div>
+            <div className="text-xs text-gray-400 mb-1">{t('detail.language')}</div>
             <div className="font-semibold text-gray-800 mb-2">{clip.detectedLanguage ?? '—'}</div>
             {clip.isRelevant === false ? (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600 inline-block">flagged irrelevant</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600 inline-block">{t('detail.flaggedIrrelevant')}</span>
             ) : (
-              <span className="text-xs text-gray-300">no flag</span>
+              <span className="text-xs text-gray-300">{t('detail.noFlag')}</span>
             )}
           </div>
         </div>
@@ -198,52 +200,52 @@ export function ClipDetailPage() {
       {/* Transcriptions */}
       <section>
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-          Transcriptions
-          <span className="ml-2 text-gray-300 font-normal normal-case">{transcriptions.length} stored</span>
+          {t('detail.transcriptions')}
+          <span className="ml-2 text-gray-300 font-normal normal-case">{t('detail.stored', { count: transcriptions.length })}</span>
         </h2>
 
         <div className="space-y-3">
           {/* AI / human transcriptions */}
-          {aiTranscriptions.map((t) => {
-            const votes = txVotes[String(t.id)];
+          {aiTranscriptions.map((tx) => {
+            const votes = txVotes[String(tx.id)];
             return (
-              <div key={t.id} className="bg-white rounded-xl border border-gray-200 p-4">
+              <div key={tx.id} className="bg-white rounded-xl border border-gray-200 p-4">
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${originBadge(t.origin)}`}>
-                    {t.origin}
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${originBadge(tx.origin)}`}>
+                    {tx.origin}
                   </span>
                   <span className="text-xs text-gray-400 ml-auto">
-                    {new Date(t.createdAt).toLocaleDateString()}
+                    {new Date(tx.createdAt).toLocaleDateString()}
                   </span>
                   {votes && (
                     <span className={`text-xs px-2 py-0.5 rounded-full ${netVotesBadge(votes.netVotes, votes.isGolden)}`}>
-                      {votes.netVotes > 0 ? '+' : ''}{votes.netVotes} votes
-                      {votes.isGolden && ' ✓ golden'}
+                      {votes.netVotes > 0 ? '+' : ''}{t('detail.votes', { net: votes.netVotes })}
+                      {votes.isGolden && ` ${t('detail.goldenBadge')}`}
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-gray-800 leading-relaxed">{t.text}</p>
+                <p className="text-sm text-gray-800 leading-relaxed">{tx.text}</p>
               </div>
             );
           })}
 
           {/* Candidate transcriptions from DB (if stored separately) */}
-          {candidateTranscriptions.map((t) => {
-            const votes = txVotes[String(t.id)];
+          {candidateTranscriptions.map((tx) => {
+            const votes = txVotes[String(tx.id)];
             return (
-              <div key={t.id} className="bg-gray-50 rounded-xl border border-gray-100 p-4">
+              <div key={tx.id} className="bg-gray-50 rounded-xl border border-gray-100 p-4">
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">
-                    {t.origin === 'candidate_1' ? 'Candidate 1' : 'Candidate 2'}
+                    {tx.origin === 'candidate_1' ? t('detail.candidate1') : t('detail.candidate2')}
                   </span>
                   {votes && (
                     <span className={`text-xs px-2 py-0.5 rounded-full ml-auto ${netVotesBadge(votes.netVotes, votes.isGolden)}`}>
-                      {votes.netVotes > 0 ? '+' : ''}{votes.netVotes} votes
-                      {votes.isGolden && ' ✓ golden'}
+                      {votes.netVotes > 0 ? '+' : ''}{t('detail.votes', { net: votes.netVotes })}
+                      {votes.isGolden && ` ${t('detail.goldenBadge')}`}
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-gray-700 leading-relaxed">{t.text}</p>
+                <p className="text-sm text-gray-700 leading-relaxed">{tx.text}</p>
               </div>
             );
           })}
@@ -251,13 +253,13 @@ export function ClipDetailPage() {
           {/* Dataset candidates (from clip record, not transcription table) */}
           {candidates.map(({ label, text }) => (
             <div key={label} className="bg-gray-50 rounded-xl border border-gray-100 p-4">
-              <div className="text-xs text-gray-400 mb-1">{label} (dataset)</div>
+              <div className="text-xs text-gray-400 mb-1">{label} {t('detail.dataset')}</div>
               <p className="text-sm text-gray-700 leading-relaxed">{text}</p>
             </div>
           ))}
 
           {transcriptions.length === 0 && candidates.length === 0 && (
-            <div className="text-center text-gray-400 text-sm py-8">No transcriptions yet.</div>
+            <div className="text-center text-gray-400 text-sm py-8">{t('detail.noTranscriptions')}</div>
           )}
         </div>
       </section>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import type { ClipWithBest } from '../types';
 
@@ -7,6 +8,7 @@ interface DimStat { dimension: string; evaluated: number; golden: number }
 interface Stats { dimensions: DimStat[]; flaggedIrrelevant: number }
 
 export function ListPage() {
+  const { t, i18n } = useTranslation();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<ClipWithBest[]>([]);
@@ -43,13 +45,13 @@ export function ListPage() {
     <div className="max-w-5xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-800">
-          CatVoice <span className="text-gray-400 font-normal text-base">— {total.toLocaleString()} clips</span>
+          {t('list.title')} <span className="text-gray-400 font-normal text-base">— {t('list.clips', { count: total.toLocaleString(i18n.resolvedLanguage) })}</span>
         </h1>
         <Link
           to="/evaluate"
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition"
         >
-          Evaluate →
+          {t('list.evaluate')}
         </Link>
       </div>
 
@@ -63,11 +65,11 @@ export function ListPage() {
               <div className="flex items-end gap-3">
                 <div>
                   <div className="text-2xl font-bold text-gray-800">{evaluated.toLocaleString()}</div>
-                  <div className="text-xs text-gray-400">evaluated</div>
+                  <div className="text-xs text-gray-400">{t('list.evaluated')}</div>
                 </div>
                 <div className="mb-0.5">
                   <div className="text-lg font-semibold text-green-600">{golden.toLocaleString()}</div>
-                  <div className="text-xs text-gray-400">golden</div>
+                  <div className="text-xs text-gray-400">{t('list.golden')}</div>
                 </div>
               </div>
             </div>
@@ -75,11 +77,11 @@ export function ListPage() {
           {stats.flaggedIrrelevant > 0 && (
             <div className="bg-white border border-orange-100 rounded-xl p-4">
               <div className="text-xs font-medium text-orange-400 uppercase tracking-wide mb-2">
-                irrelevant
+                {t('list.irrelevant')}
               </div>
               <div>
                 <div className="text-2xl font-bold text-orange-500">{stats.flaggedIrrelevant.toLocaleString()}</div>
-                <div className="text-xs text-gray-400">flagged</div>
+                <div className="text-xs text-gray-400">{t('list.flagged')}</div>
               </div>
             </div>
           )}
@@ -89,7 +91,7 @@ export function ListPage() {
       <div className="relative mb-4">
         <input
           type="text"
-          placeholder="Search transcriptions or clip ID…"
+          placeholder={t('list.searchPlaceholder')}
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           className="w-full border border-gray-300 rounded-lg px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-700"
@@ -100,7 +102,7 @@ export function ListPage() {
       {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
 
       {loading ? (
-        <div className="text-center text-gray-400 py-12">Loading…</div>
+        <div className="text-center text-gray-400 py-12">{t('list.loading')}</div>
       ) : (
         <div className="space-y-3">
           {items.map(({ clip, bestTranscription, voteSummary }) => (
@@ -123,29 +125,29 @@ export function ListPage() {
                     )}
                   </div>
                   <p className="text-sm text-gray-700 line-clamp-2">
-                    {bestTranscription?.text ?? clip.candidate1 ?? '(no transcription)'}
+                    {bestTranscription?.text ?? clip.candidate1 ?? t('list.noTranscription')}
                   </p>
                   {bestTranscription && (
                     <span className="text-xs text-gray-400 mt-1 inline-block">
-                      via {bestTranscription.origin}
+                      {t('list.via', { origin: bestTranscription.origin })}
                     </span>
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
                   {(voteSummary['transcription'] ?? 0) >= 2 && (
                     <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">
-                      ✓ golden
+                      {t('list.goldenBadge')}
                     </span>
                   )}
                   {clip.tarFile != null && (
-                    <span className="text-xs text-gray-300">tar-{clip.tarFile}</span>
+                    <span className="text-xs text-gray-300">{t('list.tar', { file: clip.tarFile })}</span>
                   )}
                 </div>
               </div>
             </Link>
           ))}
           {items.length === 0 && !loading && (
-            <div className="text-center text-gray-400 py-12">No clips found.</div>
+            <div className="text-center text-gray-400 py-12">{t('list.noClipsFound')}</div>
           )}
         </div>
       )}
@@ -157,17 +159,17 @@ export function ListPage() {
             disabled={page === 1}
             className="px-3 py-1 rounded border border-gray-300 disabled:opacity-40 text-sm hover:bg-gray-50"
           >
-            ← Prev
+            {t('list.prevPage')}
           </button>
           <span className="text-sm text-gray-600">
-            Page {page} / {totalPages}
+            {t('list.page', { page, total: totalPages })}
           </span>
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
             className="px-3 py-1 rounded border border-gray-300 disabled:opacity-40 text-sm hover:bg-gray-50"
           >
-            Next →
+            {t('list.nextPage')}
           </button>
         </div>
       )}

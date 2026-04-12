@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { AudioPlayer } from '../components/AudioPlayer';
 import type { Clip, UniqueTranscription, VoteSummary, Vote } from '../types';
@@ -29,6 +30,7 @@ interface Props {
 }
 
 export function EvaluatePage({ username }: Props) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const currentClipId = searchParams.get('clipId');
@@ -63,7 +65,7 @@ export function EvaluatePage({ username }: Props) {
     let ordered = uniqueTranscriptions;
     if (priorTxVote?.targetId) {
       const priorId = Number(priorTxVote.targetId);
-      const idx = uniqueTranscriptions.findIndex((t) => t.representativeId === priorId);
+      const idx = uniqueTranscriptions.findIndex((tx) => tx.representativeId === priorId);
       if (idx > 0) {
         ordered = [uniqueTranscriptions[idx], ...uniqueTranscriptions.slice(0, idx), ...uniqueTranscriptions.slice(idx + 1)];
       }
@@ -200,7 +202,7 @@ export function EvaluatePage({ username }: Props) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-400">Loading…</div>
+      <div className="flex items-center justify-center h-64 text-gray-400">{t('evaluate.loading')}</div>
     );
   }
 
@@ -208,10 +210,10 @@ export function EvaluatePage({ username }: Props) {
     return (
       <div className="max-w-xl mx-auto px-4 py-12 text-center">
         <div className="text-5xl mb-4">🎉</div>
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">All done!</h2>
-        <p className="text-gray-500 mb-6">You've evaluated all clips for this dimension. Come back later for more.</p>
-        <button onClick={() => loadNext()} className="btn-primary mr-3">Start over</button>
-        <Link to="/" className="btn-secondary">Back to list</Link>
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('evaluate.allDone')}</h2>
+        <p className="text-gray-500 mb-6">{t('evaluate.allDoneDescription')}</p>
+        <button onClick={() => loadNext()} className="btn-primary mr-3">{t('evaluate.startOver')}</button>
+        <Link to="/" className="btn-secondary">{t('evaluate.backToList')}</Link>
       </div>
     );
   }
@@ -221,20 +223,20 @@ export function EvaluatePage({ username }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          <Link to="/" className="text-blue-600 hover:underline text-sm">← List</Link>
+          <Link to="/" className="text-blue-600 hover:underline text-sm">{t('evaluate.list')}</Link>
           <span className="text-gray-300">|</span>
           <button
             onClick={() => navigate(-1)}
             className="text-gray-500 hover:text-gray-800 text-lg leading-none"
-            title="Previous clip"
+            title={t('evaluate.prevClip')}
           >‹</button>
           <button
             onClick={() => navigate(1)}
             className="text-gray-500 hover:text-gray-800 text-lg leading-none"
-            title="Next clip"
+            title={t('evaluate.nextClip')}
           >›</button>
         </div>
-        <div className="text-sm text-gray-500">Evaluating as <strong>{username}</strong></div>
+        <div className="text-sm text-gray-500">{t('evaluate.evaluatingAs')} <strong>{username}</strong></div>
       </div>
 
       {error && <div className="text-red-500 text-sm mb-4 p-3 bg-red-50 rounded-lg">{error}</div>}
@@ -264,9 +266,9 @@ export function EvaluatePage({ username }: Props) {
               <button
                 onClick={() => copyClipUrl(state.clip.clipId)}
                 className="text-xs font-mono text-gray-400 hover:text-blue-500 transition"
-                title="Copy link to clip detail"
+                title={t('evaluate.copyLink')}
               >
-                {copied ? '✓ copied' : state.clip.clipId}
+                {copied ? t('evaluate.copied') : state.clip.clipId}
               </button>
               {state.clip.gender && (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
@@ -277,7 +279,7 @@ export function EvaluatePage({ username }: Props) {
                 <span className="text-xs text-gray-400">{state.clip.duration.toFixed(1)}s</span>
               )}
               {netVotes >= 2 && (
-                <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">✓ golden</span>
+                <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">{t('evaluate.goldenBadge')}</span>
               )}
               {state.clip.detectedLanguage && state.clip.detectedLanguage !== 'catalan' && (
                 <span className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full font-medium">
@@ -286,7 +288,7 @@ export function EvaluatePage({ username }: Props) {
               )}
               {state.clip.isRelevant === false && (
                 <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-medium">
-                  ✗ flagged irrelevant
+                  {t('evaluate.flaggedIrrelevant')}
                 </span>
               )}
             </div>
@@ -296,7 +298,7 @@ export function EvaluatePage({ username }: Props) {
               <AudioPlayer src={api.audioUrl(state.clip.clipId)} autoPlay />
             ) : (
               <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-500 text-center">
-                Audio not indexed yet. Run the indexing script to enable in-browser playback.
+                {t('evaluate.audioNotIndexed')}
               </div>
             )}
 
@@ -308,7 +310,7 @@ export function EvaluatePage({ username }: Props) {
                 rel="noreferrer"
                 className="mt-2 inline-flex items-center gap-1 text-xs text-red-600 hover:underline"
               >
-                ▶ Open source on YouTube
+                {t('evaluate.openYouTube')}
               </a>
             )}
           </div>
@@ -316,7 +318,7 @@ export function EvaluatePage({ username }: Props) {
           {/* Dimension-specific content */}
           {dimension === 'transcription' && (() => {
             if (!activeText) {
-              return <p className="text-sm text-gray-400">No transcription available for this clip.</p>;
+              return <p className="text-sm text-gray-400">{t('evaluate.noTranscription')}</p>;
             }
 
             const tVotes = bestTx
@@ -336,14 +338,14 @@ export function EvaluatePage({ username }: Props) {
                   <div className="flex items-center gap-2 mt-2">
                     <span className="text-xs text-gray-400 flex-1">
                       {editText.trim() !== (bestTx?.text ?? activeText)
-                        ? 'Will save as a human correction'
-                        : 'No changes'}
+                        ? t('evaluate.willSave')
+                        : t('evaluate.noChanges')}
                     </span>
                     <button
                       onClick={() => { setEditMode(false); setEditText(''); }}
                       className="text-xs text-gray-400 hover:text-gray-600"
                     >
-                      Cancel
+                      {t('evaluate.cancel')}
                     </button>
                   </div>
                 </div>
@@ -361,7 +363,7 @@ export function EvaluatePage({ username }: Props) {
                     ))}
                     {bestTx?.hasAgreement && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">
-                        ★ {bestTx.origins.length} models agree
+                        {t('evaluate.modelsAgree', { count: bestTx.origins.length })}
                       </span>
                     )}
                     {tVotes && (
@@ -383,7 +385,7 @@ export function EvaluatePage({ username }: Props) {
                     onClick={() => { setEditMode(true); setEditText(activeText); }}
                     className="flex-shrink-0 text-xs text-blue-500 hover:text-blue-700 hover:underline mt-0.5"
                   >
-                    Edit
+                    {t('evaluate.edit')}
                   </button>
                 </div>
               </div>
@@ -392,17 +394,17 @@ export function EvaluatePage({ username }: Props) {
 
           {dimension === 'gender' && (
             <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <h3 className="font-semibold text-gray-700 mb-3">Gender annotation</h3>
+              <h3 className="font-semibold text-gray-700 mb-3">{t('evaluate.genderAnnotation')}</h3>
               <div className="text-2xl font-bold text-gray-800 mb-2">
                 {state.clip.gender ?? 'Unknown'}
               </div>
               <p className="text-sm text-gray-500">
-                Listen to the clip and vote whether this gender annotation is correct.
+                {t('evaluate.genderInstruction')}
               </p>
               {voteSummaryForDimension && (
                 <div className="mt-3 text-sm text-gray-500">
-                  Net votes: {voteSummaryForDimension.netVotes}
-                  {voteSummaryForDimension.isGolden && ' ✓ golden'}
+                  {t('evaluate.netVotes', { count: voteSummaryForDimension.netVotes })}
+                  {voteSummaryForDimension.isGolden && t('evaluate.goldenSuffix')}
                 </div>
               )}
             </div>
@@ -410,25 +412,25 @@ export function EvaluatePage({ username }: Props) {
 
           {dimension === 'dialect' && (
             <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <h3 className="font-semibold text-gray-700 mb-3">Dialect detection</h3>
+              <h3 className="font-semibold text-gray-700 mb-3">{t('evaluate.dialectDetection')}</h3>
               {state.clip.detectedDialect ? (
                 <>
                   <div className="text-xl font-bold text-gray-800 mb-2">
                     {state.clip.detectedDialect}
                   </div>
                   <p className="text-sm text-gray-500">
-                    Gemini detected this Catalan dialect variant. Listen and vote whether it is correct.
+                    {t('evaluate.dialectInstruction')}
                   </p>
                 </>
               ) : (
                 <p className="text-sm text-gray-400">
-                  No dialect detected yet. Run the transcription script with Gemini to populate this field.
+                  {t('evaluate.noDialect')}
                 </p>
               )}
               {voteSummaryForDimension && (
                 <div className="mt-3 text-sm text-gray-500">
-                  Net votes: {voteSummaryForDimension.netVotes}
-                  {voteSummaryForDimension.isGolden && ' ✓ golden'}
+                  {t('evaluate.netVotes', { count: voteSummaryForDimension.netVotes })}
+                  {voteSummaryForDimension.isGolden && t('evaluate.goldenSuffix')}
                 </div>
               )}
             </div>
@@ -441,21 +443,21 @@ export function EvaluatePage({ username }: Props) {
               disabled={voting || (dimension === 'transcription' && !activeText.trim()) || (dimension === 'dialect' && !state.clip.detectedDialect)}
               className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
             >
-              👍 Correct
+              {t('evaluate.correct')}
             </button>
             <button
               onClick={() => vote(-1)}
               disabled={voting || (dimension === 'transcription' && !activeText.trim()) || (dimension === 'dialect' && !state.clip.detectedDialect)}
               className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
             >
-              👎 Incorrect
+              {t('evaluate.incorrect')}
             </button>
             <button
               onClick={skip}
               disabled={voting}
               className="px-6 bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium py-3 rounded-xl transition"
             >
-              Skip
+              {t('evaluate.skip')}
             </button>
           </div>
 
@@ -465,16 +467,18 @@ export function EvaluatePage({ username }: Props) {
               onClick={flagIrrelevant}
               disabled={voting}
               className="text-xs text-orange-500 hover:text-orange-700 hover:underline disabled:opacity-40"
-              title="Flag this clip as not in Catalan or otherwise irrelevant"
+              title={t('evaluate.notRelevantTitle')}
             >
-              ⚑ Not in Catalan / Not relevant
+              {t('evaluate.notRelevant')}
             </button>
           </div>
 
           {userVoteForDimension && (
             <p className="text-center text-sm text-gray-400">
-              You already voted {userVoteForDimension.value === 1 ? '👍' : '👎'} on this clip for {dimension}.
-              Voting again will update your choice.
+              {t('evaluate.alreadyVoted', {
+                emoji: userVoteForDimension.value === 1 ? '👍' : '👎',
+                dimension,
+              })}
             </p>
           )}
         </div>
