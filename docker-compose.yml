@@ -14,7 +14,7 @@ services:
       - ./apps/backend/.env.production
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.catvoice-backend.rule=Host(`api.catvoice.internal.liam.cat`)"
+      - "traefik.http.routers.catvoice-backend.rule=Host(`api.catvoice.internal.liam.cat`) || Host(`api.catvoice.liam.cat`)"
       - "traefik.http.routers.catvoice-backend.entrypoints=websecure"
       - "traefik.http.routers.catvoice-backend.tls=true"
       - "traefik.http.routers.catvoice-backend.tls.certresolver=letsencrypt"
@@ -33,7 +33,7 @@ services:
       context: ./apps/frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: https://api.catvoice.internal.liam.cat
+        VITE_API_BASE_URL: https://api.catvoice.liam.cat
     container_name: catvoice-frontend
     restart: unless-stopped
     networks:
@@ -42,7 +42,7 @@ services:
       - backend
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.catvoice-frontend.rule=Host(`catvoice.internal.liam.cat`)"
+      - "traefik.http.routers.catvoice-frontend.rule=Host(`catvoice.internal.liam.cat`) || Host(`catvoice.liam.cat`)"
       - "traefik.http.routers.catvoice-frontend.entrypoints=websecure"
       - "traefik.http.routers.catvoice-frontend.tls=true"
       - "traefik.http.routers.catvoice-frontend.tls.certresolver=letsencrypt"
