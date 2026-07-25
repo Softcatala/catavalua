@@ -5,3 +5,28 @@ data/
 apps/backend/.env
 apps/backend/.env.production
 apps/frontend/dist/
+
+# Python virtualenv / bytecode cache
+venv/
+__pycache__/
+*.pyc
+
+# Ad-hoc scratch audio + analysis artifacts dropped at repo root
+# (the real pipeline lives in scripts/transcribe.py — see CLAUDE.md)
+/*.wav
+/cv_*.json
+/cv_*.srt
+/cv_*.tsv
+/cv_*.txt
+/cv_*.vtt
+/analyze_*.py
+/transcribe_*.py
+/query_gemini*.py
+/check_audio.py
+/verify_audio.py
+/whisper_check.py
+/test_audio.py
+/test_gemini.py
+/play.py
+/run_*.py
+scripts/play_audio.py
