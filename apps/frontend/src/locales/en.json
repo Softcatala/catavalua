@@ -77,5 +77,34 @@
   },
   "footer": {
     "language": "Language"
+  },
+  "dimension": {
+    "transcription": "Transcription",
+    "gender": "Gender",
+    "dialect": "Dialect"
+  },
+  "values": {
+    "gender": {
+      "male": "Male",
+      "female": "Female",
+      "unknown": "Unknown"
+    },
+    "dialect": {
+      "central": "Central",
+      "valencian": "Valencian",
+      "balearic": "Balearic",
+      "northwestern": "Northwestern",
+      "eastern": "Eastern",
+      "western": "Western",
+      "septentrional": "Septentrional",
+      "alguerès": "Algherese",
+      "unknown": "Unknown"
+    },
+    "language": {
+      "catalan": "Catalan",
+      "spanish": "Spanish",
+      "other": "Other",
+      "unknown": "Unknown"
+    }
   }
 }

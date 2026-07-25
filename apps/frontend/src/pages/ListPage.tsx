@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import type { ClipWithBest } from '../types';
+import { translateValue } from '../i18nValues';
 
 interface DimStat { dimension: string; evaluated: number; golden: number }
 interface Stats { dimensions: DimStat[]; flaggedIrrelevant: number }
@@ -60,7 +61,7 @@ export function ListPage() {
           {stats.dimensions.map(({ dimension, evaluated, golden }) => (
             <div key={dimension} className="bg-white border border-gray-200 rounded-xl p-4">
               <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-                {dimension}
+                {t(`dimension.${dimension}`, { defaultValue: dimension })}
               </div>
               <div className="flex items-end gap-3">
                 <div>
@@ -117,7 +118,7 @@ export function ListPage() {
                     <span className="text-xs font-mono text-gray-400 truncate">{clip.clipId}</span>
                     {clip.gender && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
-                        {clip.gender}
+                        {translateValue(t, 'gender', clip.gender)}
                       </span>
                     )}
                     {clip.duration && (

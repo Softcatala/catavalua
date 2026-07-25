@@ -77,5 +77,34 @@
   },
   "footer": {
     "language": "Llengua"
+  },
+  "dimension": {
+    "transcription": "Transcripció",
+    "gender": "Gènere",
+    "dialect": "Dialecte"
+  },
+  "values": {
+    "gender": {
+      "male": "Home",
+      "female": "Dona",
+      "unknown": "Desconegut"
+    },
+    "dialect": {
+      "central": "Central",
+      "valencian": "Valencià",
+      "balearic": "Balear",
+      "northwestern": "Nord-occidental",
+      "eastern": "Oriental",
+      "western": "Occidental",
+      "septentrional": "Septentrional",
+      "alguerès": "Alguerès",
+      "unknown": "Desconegut"
+    },
+    "language": {
+      "catalan": "Català",
+      "spanish": "Castellà",
+      "other": "Altra",
+      "unknown": "Desconegut"
+    }
   }
 }

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { AudioPlayer } from '../components/AudioPlayer';
 import type { ClipWithBest, Transcription, VoteSummary } from '../types';
+import { translateValue } from '../i18nValues';
 
 function originBadge(origin: string) {
   const colours: Record<string, string> = {
@@ -110,17 +111,17 @@ export function ClipDetailPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-mono text-xs text-gray-400 break-all">{clip.clipId}</span>
           {clip.gender && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{clip.gender}</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{translateValue(t, 'gender', clip.gender)}</span>
           )}
           {clip.duration != null && (
             <span className="text-xs text-gray-400">{clip.duration.toFixed(1)}s</span>
           )}
           {clip.detectedDialect && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">{clip.detectedDialect}</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">{translateValue(t, 'dialect', clip.detectedDialect)}</span>
           )}
           {clip.detectedLanguage && clip.detectedLanguage !== 'catalan' && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">
-              ⚠ {clip.detectedLanguage}
+              ⚠ {translateValue(t, 'language', clip.detectedLanguage)}
             </span>
           )}
           {clip.isRelevant === false && (
@@ -159,7 +160,7 @@ export function ClipDetailPage() {
           {/* Gender */}
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <div className="text-xs text-gray-400 mb-1">{t('detail.gender')}</div>
-            <div className="font-semibold text-gray-800 mb-2">{clip.gender ?? '—'}</div>
+            <div className="font-semibold text-gray-800 mb-2">{clip.gender ? translateValue(t, 'gender', clip.gender) : '—'}</div>
             {genderVote ? (
               <span className={`text-xs px-2 py-0.5 rounded-full inline-block ${netVotesBadge(genderVote.netVotes, genderVote.isGolden)}`}>
                 {genderVote.netVotes > 0 ? '+' : ''}{t('detail.votes', { net: genderVote.netVotes })}
@@ -173,7 +174,7 @@ export function ClipDetailPage() {
           {/* Dialect */}
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <div className="text-xs text-gray-400 mb-1">{t('detail.dialect')}</div>
-            <div className="font-semibold text-gray-800 mb-2">{clip.detectedDialect ?? '—'}</div>
+            <div className="font-semibold text-gray-800 mb-2">{clip.detectedDialect ? translateValue(t, 'dialect', clip.detectedDialect) : '—'}</div>
             {dialectVote ? (
               <span className={`text-xs px-2 py-0.5 rounded-full inline-block ${netVotesBadge(dialectVote.netVotes, dialectVote.isGolden)}`}>
                 {dialectVote.netVotes > 0 ? '+' : ''}{t('detail.votes', { net: dialectVote.netVotes })}
@@ -187,7 +188,7 @@ export function ClipDetailPage() {
           {/* Language */}
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <div className="text-xs text-gray-400 mb-1">{t('detail.language')}</div>
-            <div className="font-semibold text-gray-800 mb-2">{clip.detectedLanguage ?? '—'}</div>
+            <div className="font-semibold text-gray-800 mb-2">{clip.detectedLanguage ? translateValue(t, 'language', clip.detectedLanguage) : '—'}</div>
             {clip.isRelevant === false ? (
               <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600 inline-block">{t('detail.flaggedIrrelevant')}</span>
             ) : (

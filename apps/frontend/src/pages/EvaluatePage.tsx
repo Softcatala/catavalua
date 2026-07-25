@@ -5,6 +5,7 @@ import { api } from '../api';
 import { AudioPlayer } from '../components/AudioPlayer';
 import type { Clip, UniqueTranscription, VoteSummary, Vote } from '../types';
 import { DIMENSIONS, type Dimension } from '../types';
+import { translateValue } from '../i18nValues';
 
 const SKIP_STORAGE_KEY = 'catvoice:skipped';
 
@@ -250,7 +251,7 @@ export function EvaluatePage({ username }: Props) {
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            {d}
+            {t(`dimension.${d}`)}
           </button>
         ))}
       </div>
@@ -269,7 +270,7 @@ export function EvaluatePage({ username }: Props) {
               </button>
               {state.clip.gender && (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
-                  {state.clip.gender}
+                  {translateValue(t, 'gender', state.clip.gender)}
                 </span>
               )}
               {state.clip.duration && (
@@ -280,7 +281,7 @@ export function EvaluatePage({ username }: Props) {
               )}
               {state.clip.detectedLanguage && state.clip.detectedLanguage !== 'catalan' && (
                 <span className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full font-medium">
-                  ⚠ {state.clip.detectedLanguage}
+                  ⚠ {translateValue(t, 'language', state.clip.detectedLanguage)}
                 </span>
               )}
               {state.clip.isRelevant === false && (
@@ -393,7 +394,7 @@ export function EvaluatePage({ username }: Props) {
             <div className="bg-white rounded-2xl border border-gray-200 p-5">
               <h3 className="font-semibold text-gray-700 mb-3">{t('evaluate.genderAnnotation')}</h3>
               <div className="text-2xl font-bold text-gray-800 mb-2">
-                {state.clip.gender ?? 'Unknown'}
+                {state.clip.gender ? translateValue(t, 'gender', state.clip.gender) : t('values.gender.unknown')}
               </div>
               <p className="text-sm text-gray-500">
                 {t('evaluate.genderInstruction')}
@@ -413,7 +414,7 @@ export function EvaluatePage({ username }: Props) {
               {state.clip.detectedDialect ? (
                 <>
                   <div className="text-xl font-bold text-gray-800 mb-2">
-                    {state.clip.detectedDialect}
+                    {translateValue(t, 'dialect', state.clip.detectedDialect)}
                   </div>
                   <p className="text-sm text-gray-500">
                     {t('evaluate.dialectInstruction')}
