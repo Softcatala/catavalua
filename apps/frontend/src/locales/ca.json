@@ -44,7 +44,6 @@
     "list": "← Llista",
     "prevClip": "Clip anterior",
     "nextClip": "Clip següent",
-    "evaluatingAs": "Avaluant com a",
     "loading": "Carregant…",
     "allDone": "Tot fet!",
     "allDoneDescription": "Heu avaluat tots els clips per a aquesta dimensió. Torneu més endavant per veure'n més.",
@@ -75,12 +74,6 @@
     "flaggedIrrelevant": "✗ marcat com a irrellevant",
     "alreadyVoted": "Ja heu votat {{emoji}} en aquest clip per a {{dimension}}. Votar de nou actualitzarà la vostra elecció.",
     "edit": "Edita"
-  },
-  "modal": {
-    "welcome": "Benvinguts a CatVoice",
-    "description": "Trieu un nom d'usuari per fer un seguiment de les vostres avaluacions. S'emmagatzema localment al vostre navegador. Podeu utilitzar el mateix nom d'usuari en diversos dispositius.",
-    "placeholder": "El vostre nom d'usuari",
-    "startEvaluating": "Comenceu a avaluar"
   },
   "footer": {
     "language": "Llengua"

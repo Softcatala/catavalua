@@ -221,22 +221,19 @@ export function EvaluatePage({ username }: Props) {
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <Link to="/" className="text-blue-600 hover:underline text-sm">{t('evaluate.list')}</Link>
-          <span className="text-gray-300">|</span>
-          <button
-            onClick={() => navigate(-1)}
-            className="text-gray-500 hover:text-gray-800 text-lg leading-none"
-            title={t('evaluate.prevClip')}
-          >‹</button>
-          <button
-            onClick={() => navigate(1)}
-            className="text-gray-500 hover:text-gray-800 text-lg leading-none"
-            title={t('evaluate.nextClip')}
-          >›</button>
-        </div>
-        <div className="text-sm text-gray-500">{t('evaluate.evaluatingAs')} <strong>{username}</strong></div>
+      <div className="flex items-center gap-2 mb-6">
+        <Link to="/" className="text-blue-600 hover:underline text-sm">{t('evaluate.list')}</Link>
+        <span className="text-gray-300">|</span>
+        <button
+          onClick={() => navigate(-1)}
+          className="text-gray-500 hover:text-gray-800 text-lg leading-none"
+          title={t('evaluate.prevClip')}
+        >‹</button>
+        <button
+          onClick={() => navigate(1)}
+          className="text-gray-500 hover:text-gray-800 text-lg leading-none"
+          title={t('evaluate.nextClip')}
+        >›</button>
       </div>
 
       {error && <div className="text-red-500 text-sm mb-4 p-3 bg-red-50 rounded-lg">{error}</div>}

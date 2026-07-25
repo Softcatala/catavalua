@@ -44,7 +44,6 @@
     "list": "← List",
     "prevClip": "Previous clip",
     "nextClip": "Next clip",
-    "evaluatingAs": "Evaluating as",
     "loading": "Loading…",
     "allDone": "All done!",
     "allDoneDescription": "You've evaluated all clips for this dimension. Come back later for more.",
@@ -75,12 +74,6 @@
     "flaggedIrrelevant": "✗ flagged irrelevant",
     "alreadyVoted": "You already voted {{emoji}} on this clip for {{dimension}}. Voting again will update your choice.",
     "edit": "Edit"
-  },
-  "modal": {
-    "welcome": "Welcome to CatVoice",
-    "description": "Choose a username to track your evaluations. It is stored locally in your browser. You can use the same username on multiple devices.",
-    "placeholder": "Your username",
-    "startEvaluating": "Start evaluating"
   },
   "footer": {
     "language": "Language"
