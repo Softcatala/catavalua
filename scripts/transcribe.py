@@ -542,7 +542,7 @@ def process_clip(api_url: str, row: dict, tar_index: dict[str, dict]) -> bool:
 
 def main():
     parser = argparse.ArgumentParser(description="CatVoice transcription pipeline")
-    parser.add_argument("--api-url", default="https://api.catvoice.internal.liam.cat")
+    parser.add_argument("--api-url", default="http://localhost:3000")
     parser.add_argument("--max", type=int, default=0, help="Max clips to process (0=all)")
     parser.add_argument("--offset", type=int, default=0, help="Dataset row offset")
     parser.add_argument(

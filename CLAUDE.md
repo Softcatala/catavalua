@@ -54,8 +54,8 @@ python scripts/transcribe.py
 # Process N clips
 python scripts/transcribe.py --max 100
 
-# Different backend URL
-python scripts/transcribe.py --api-url http://localhost:3000
+# Different backend URL (defaults to http://localhost:3000)
+python scripts/transcribe.py --api-url https://api.your-domain.example
 ```
 
 The script:
@@ -103,5 +103,4 @@ After completing any code change, always:
 
 ## Domains (production)
 
-- Frontend: `catvoice.internal.liam.cat`
-- Backend:  `api.catvoice.internal.liam.cat`
+Traefik routing domains are configured via `.env` at the repo root (see `.env.example`), not hardcoded in `docker-compose.yml`.

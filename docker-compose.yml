@@ -14,7 +14,7 @@ services:
       - ./apps/backend/.env.production
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.catvoice-backend.rule=Host(`api.catvoice.internal.liam.cat`) || Host(`api.catvoice.liam.cat`)"
+      - "traefik.http.routers.catvoice-backend.rule=Host(`${BACKEND_DOMAIN_PUBLIC}`) || Host(`${BACKEND_DOMAIN_INTERNAL}`)"
       - "traefik.http.routers.catvoice-backend.entrypoints=websecure"
       - "traefik.http.routers.catvoice-backend.tls=true"
       - "traefik.http.routers.catvoice-backend.tls.certresolver=letsencrypt"
@@ -33,7 +33,9 @@ services:
       context: .
       dockerfile: apps/frontend/Dockerfile
       args:
-        VITE_API_BASE_URL: https://api.catvoice.liam.cat
+        # Must be the publicly-reachable domain: this gets baked into the
+        # JS bundle at build time and needs to resolve from any browser.
+        VITE_API_BASE_URL: https://${BACKEND_DOMAIN_PUBLIC}
     container_name: catvoice-frontend
     restart: unless-stopped
     networks:
@@ -42,7 +44,7 @@ services:
       - backend
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.catvoice-frontend.rule=Host(`catvoice.internal.liam.cat`) || Host(`catvoice.liam.cat`)"
+      - "traefik.http.routers.catvoice-frontend.rule=Host(`${FRONTEND_DOMAIN_PUBLIC}`) || Host(`${FRONTEND_DOMAIN_INTERNAL}`)"
       - "traefik.http.routers.catvoice-frontend.entrypoints=websecure"
       - "traefik.http.routers.catvoice-frontend.tls=true"
       - "traefik.http.routers.catvoice-frontend.tls.certresolver=letsencrypt"

@@ -5,6 +5,7 @@ data/
 apps/backend/.env
 apps/backend/.env.production
 apps/frontend/dist/
+/.env
 
 # Python virtualenv / bytecode cache
 venv/

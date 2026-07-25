@@ -12,12 +12,12 @@ after an interruption won't create duplicate rows.
 
 Usage:
   python scripts/migrate_gemini_transcriptions.py \
-      --source-api https://api.catvoice.internal.liam.cat \
+      --source-api https://api.catvoice.example.com \
       --dest-api https://api.catvoice-new.example.com
 
   # Preview without writing anything to --dest-api
   python scripts/migrate_gemini_transcriptions.py \
-      --source-api https://api.catvoice.internal.liam.cat \
+      --source-api https://api.catvoice.example.com \
       --dest-api https://api.catvoice-new.example.com \
       --dry-run
 """
