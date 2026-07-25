@@ -15,6 +15,11 @@ export class TranscriptionService {
     text: string;
     metadata?: string;
   }): Promise<Transcription> {
+    const existing = await this.repo.findOne({
+      where: { clipId: data.clipId, origin: data.origin, text: data.text },
+    });
+    if (existing) return existing;
+
     const t = this.repo.create({
       ...data,
       createdAt: new Date().toISOString(),

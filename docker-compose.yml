@@ -1,8 +1,8 @@
 services:
   backend:
     build:
-      context: ./apps/backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/backend/Dockerfile
     container_name: catvoice-backend
     restart: unless-stopped
     networks:
@@ -30,8 +30,8 @@ services:
 
   frontend:
     build:
-      context: ./apps/frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/frontend/Dockerfile
       args:
         VITE_API_BASE_URL: https://api.catvoice.liam.cat
     container_name: catvoice-frontend

@@ -1,2 +1,10 @@
 packages:
   - 'apps/*'
+
+overrides:
+  tar: ^7.5.15
+
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - esbuild
+  - sqlite3
