@@ -1,6 +1,6 @@
 {
   "list": {
-    "title": "CatVoice",
+    "title": "CatAvalua",
     "clips": "{{count}} clips",
     "evaluate": "Evaluate →",
     "searchPlaceholder": "Search transcriptions or clip ID…",
@@ -76,7 +76,20 @@
     "edit": "Edit"
   },
   "footer": {
+    "about": "About",
     "language": "Language"
+  },
+  "about": {
+    "title": "About this project",
+    "datasetTitle": "The dataset",
+    "datasetText": "This platform hosts human evaluation for the Catalan YouTube Speech Corpus: 231,700 short clips of spontaneous Catalan speech, automatically extracted from public YouTube videos by Softcatalà, the volunteer organization behind free and open-source Catalan-language software. Each clip comes with two independent, machine-generated transcription candidates, along with automatically detected speaker gender and clip timing.",
+    "whyTitle": "Why it needs evaluation",
+    "whyText": "The transcripts were produced automatically, not reviewed by a person, so the dataset is raw and unvalidated — useful for large-scale training, but not a reliable benchmark on its own. Where the two automatic candidates agree, the text is usually trustworthy; where they diverge, the clip is often noisy, overlapping speech, or otherwise hard to transcribe.",
+    "goalTitle": "What we're doing here",
+    "goalText": "Every vote you cast — on a transcription, a speaker gender, or a detected dialect — helps build a human-validated layer on top of this raw automatic data: surfacing which transcriptions can be trusted, catching what the models got wrong, and producing higher-confidence data that can be used to improve Catalan speech recognition.",
+    "linksTitle": "Learn more",
+    "linkDataset": "Catalan YouTube Speech Corpus on Hugging Face",
+    "linkSoftcatala": "Softcatalà"
   },
   "dimension": {
     "transcription": "Transcription",

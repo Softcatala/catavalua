@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ListPage } from './pages/ListPage';
 import { EvaluatePage } from './pages/EvaluatePage';
 import { ClipDetailPage } from './pages/ClipDetailPage';
+import { AboutPage } from './pages/AboutPage';
 import { Footer } from './components/Footer';
 
 const USERNAME_KEY = 'catvoice:username';
@@ -26,6 +27,7 @@ function App() {
             <Route path="/" element={<ListPage />} />
             <Route path="/evaluate" element={<EvaluatePage username={username} />} />
             <Route path="/clip/:id" element={<ClipDetailPage />} />
+            <Route path="/about" element={<AboutPage />} />
           </Routes>
         </div>
         <Footer />

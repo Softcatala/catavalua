@@ -1,6 +1,6 @@
 {
   "list": {
-    "title": "CatVoice",
+    "title": "CatAvalua",
     "clips": "{{count}} clips",
     "evaluate": "Avaluar →",
     "searchPlaceholder": "Cercar transcripcions o ID de clip…",
@@ -76,7 +76,20 @@
     "edit": "Edita"
   },
   "footer": {
+    "about": "Quant a",
     "language": "Llengua"
+  },
+  "about": {
+    "title": "Sobre aquest projecte",
+    "datasetTitle": "El conjunt de dades",
+    "datasetText": "Aquesta plataforma allotja l'avaluació humana del Catalan YouTube Speech Corpus: 231.700 clips curts de parla catalana espontània, extrets automàticament de vídeos públics de YouTube per Softcatalà, l'organització de voluntaris darrere del programari lliure i de codi obert en català. Cada clip inclou dues transcripcions candidates generades automàticament i de manera independent, juntament amb el gènere de la persona que parla i la durada del clip, detectats automàticament.",
+    "whyTitle": "Per què cal avaluar-lo",
+    "whyText": "Les transcripcions es van generar automàticament, sense revisió humana, de manera que el conjunt de dades és brut i no validat: útil per a l'entrenament a gran escala, però encara no un referent fiable per si sol. Quan les dues transcripcions automàtiques coincideixen, el text sol ser fiable; quan divergeixen, sovint es tracta d'un clip sorollós, amb parla superposada o difícil de transcriure per algun altre motiu.",
+    "goalTitle": "Què fem aquí",
+    "goalText": "Cada vot que emeteu —sobre una transcripció, el gènere de la persona que parla o el dialecte detectat— ajuda a construir una capa validada per humans sobre aquestes dades automàtiques brutes: identificant quines transcripcions són fiables, detectant els errors dels models i generant dades de més confiança que es poden fer servir per millorar el reconeixement de la parla en català.",
+    "linksTitle": "Més informació",
+    "linkDataset": "Catalan YouTube Speech Corpus a Hugging Face",
+    "linkSoftcatala": "Softcatalà"
   },
   "dimension": {
     "transcription": "Transcripció",
