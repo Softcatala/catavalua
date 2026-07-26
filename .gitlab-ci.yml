@@ -32,7 +32,7 @@ build-frontend:
   extends: .build
   stage: build
   script:
-    - docker build -f apps/frontend/Dockerfile --build-arg VITE_API_BASE_URL=https://catavalua-api.softcatala.org --cache-from $CI_REGISTRY_IMAGE/frontend:latest --tag $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHA --tag $CI_REGISTRY_IMAGE/frontend:$DATETAG --tag $CI_REGISTRY_IMAGE/frontend:latest .
+    - docker build -f apps/frontend/Dockerfile --build-arg VITE_API_BASE_URL=/api --cache-from $CI_REGISTRY_IMAGE/frontend:latest --tag $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHA --tag $CI_REGISTRY_IMAGE/frontend:$DATETAG --tag $CI_REGISTRY_IMAGE/frontend:latest .
     - docker push $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHA
     - docker push $CI_REGISTRY_IMAGE/frontend:$DATETAG
     - docker push $CI_REGISTRY_IMAGE/frontend:latest
