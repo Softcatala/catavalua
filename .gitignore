@@ -7,6 +7,9 @@ apps/backend/.env.production
 apps/frontend/dist/
 /.env
 
+# Private deployment/infra notes — not for the public repo
+/DEPLOYMENT_NOTES.md
+
 # Python virtualenv / bytecode cache
 venv/
 __pycache__/
