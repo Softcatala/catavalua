@@ -1,4 +1,4 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Delete, Param, ParseIntPipe, Body } from '@nestjs/common';
 import { TranscriptionService } from '../service/transcription.service';
 import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
@@ -16,5 +16,12 @@ export class TranscriptionController {
   @Post()
   async create(@Body() dto: CreateTranscriptionDto) {
     return this.service.create(dto);
+  }
+
+  // Gated at the Traefik layer (scauth) — not publicly reachable unauthenticated.
+  @Delete(':id')
+  async remove(@Param('id', ParseIntPipe) id: number) {
+    await this.service.remove(id);
+    return { ok: true };
   }
 }

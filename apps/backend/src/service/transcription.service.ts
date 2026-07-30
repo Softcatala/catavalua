@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Transcription } from '../domain/transcription.entity';
@@ -34,5 +34,10 @@ export class TranscriptionService {
   async hasOrigin(clipId: string, origin: string): Promise<boolean> {
     const count = await this.repo.count({ where: { clipId, origin } });
     return count > 0;
+  }
+
+  async remove(id: number): Promise<void> {
+    const result = await this.repo.delete({ id });
+    if (result.affected === 0) throw new NotFoundException(`Transcription ${id} not found`);
   }
 }
