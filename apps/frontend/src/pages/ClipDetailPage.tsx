@@ -5,6 +5,7 @@ import { api } from '../api';
 import { AudioPlayer } from '../components/AudioPlayer';
 import type { ClipWithBest, Transcription, VoteSummary } from '../types';
 import { translateValue } from '../i18nValues';
+import { resolveDimension } from '../voteUtils';
 
 function originBadge(origin: string) {
   const colours: Record<string, string> = {
@@ -76,8 +77,10 @@ export function ClipDetailPage() {
       .map((v) => [v.targetId!, v]),
   );
 
-  const genderVote = voteSummary.find((v) => v.dimension === 'gender');
-  const dialectVote = voteSummary.find((v) => v.dimension === 'dialect');
+  // Leading candidate per dimension — once a competing value overtakes the
+  // originally annotated one (e.g. a corrected gender), this reflects that.
+  const genderResolved = resolveDimension(voteSummary, 'gender', clip.gender);
+  const dialectResolved = resolveDimension(voteSummary, 'dialect', clip.detectedDialect);
 
   // Candidates as pseudo-transcription rows (not in the transcriptions list)
   const candidates = [
@@ -160,11 +163,11 @@ export function ClipDetailPage() {
           {/* Gender */}
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <div className="text-xs text-gray-400 mb-1">{t('detail.gender')}</div>
-            <div className="font-semibold text-gray-800 mb-2">{clip.gender ? translateValue(t, 'gender', clip.gender) : '—'}</div>
-            {genderVote ? (
-              <span className={`text-xs px-2 py-0.5 rounded-full inline-block ${netVotesBadge(genderVote.netVotes, genderVote.isGolden)}`}>
-                {genderVote.netVotes > 0 ? '+' : ''}{t('detail.votes', { net: genderVote.netVotes })}
-                {genderVote.isGolden && ' ✓'}
+            <div className="font-semibold text-gray-800 mb-2">{genderResolved.value ? translateValue(t, 'gender', genderResolved.value) : '—'}</div>
+            {genderResolved.candidates.length > 0 ? (
+              <span className={`text-xs px-2 py-0.5 rounded-full inline-block ${netVotesBadge(genderResolved.netVotes, genderResolved.isGolden)}`}>
+                {genderResolved.netVotes > 0 ? '+' : ''}{t('detail.votes', { net: genderResolved.netVotes })}
+                {genderResolved.isGolden && ' ✓'}
               </span>
             ) : (
               <span className="text-xs text-gray-300">{t('detail.noVotesYet')}</span>
@@ -174,11 +177,11 @@ export function ClipDetailPage() {
           {/* Dialect */}
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <div className="text-xs text-gray-400 mb-1">{t('detail.dialect')}</div>
-            <div className="font-semibold text-gray-800 mb-2">{clip.detectedDialect ? translateValue(t, 'dialect', clip.detectedDialect) : '—'}</div>
-            {dialectVote ? (
-              <span className={`text-xs px-2 py-0.5 rounded-full inline-block ${netVotesBadge(dialectVote.netVotes, dialectVote.isGolden)}`}>
-                {dialectVote.netVotes > 0 ? '+' : ''}{t('detail.votes', { net: dialectVote.netVotes })}
-                {dialectVote.isGolden && ' ✓'}
+            <div className="font-semibold text-gray-800 mb-2">{dialectResolved.value ? translateValue(t, 'dialect', dialectResolved.value) : '—'}</div>
+            {dialectResolved.candidates.length > 0 ? (
+              <span className={`text-xs px-2 py-0.5 rounded-full inline-block ${netVotesBadge(dialectResolved.netVotes, dialectResolved.isGolden)}`}>
+                {dialectResolved.netVotes > 0 ? '+' : ''}{t('detail.votes', { net: dialectResolved.netVotes })}
+                {dialectResolved.isGolden && ' ✓'}
               </span>
             ) : (
               <span className="text-xs text-gray-300">{t('detail.noVotesYet')}</span>

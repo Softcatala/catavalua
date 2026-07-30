@@ -1,6 +1,6 @@
 import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { Vote } from '../domain/vote.entity';
 
 export interface VoteSummary {
@@ -23,13 +23,19 @@ export class VoteService {
     username: string;
     value: number; // +1 or -1
   }): Promise<Vote> {
-    // Upsert: one vote per user per clip per dimension
+    // Upsert: one vote per user per clip per dimension per target — this lets a
+    // user hold independent votes on competing candidates within the same dimension
+    // (e.g. downvoting the current gender while upvoting the proposed alternative).
     const existing = await this.repo.findOne({
-      where: { clipId: data.clipId, dimension: data.dimension, username: data.username },
+      where: {
+        clipId: data.clipId,
+        dimension: data.dimension,
+        targetId: data.targetId ?? IsNull(),
+        username: data.username,
+      },
     });
     if (existing) {
       existing.value = data.value;
-      existing.targetId = data.targetId ?? existing.targetId;
       existing.createdAt = new Date().toISOString();
       return this.repo.save(existing);
     }
