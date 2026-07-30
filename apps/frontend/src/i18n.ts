@@ -9,10 +9,10 @@ i18n
   .use(initReactI18next)
   .init({
     resources: { en: { translation: en }, ca: { translation: ca } },
-    fallbackLng: 'en',
+    fallbackLng: 'ca',
     supportedLngs: ['en', 'ca'],
     detection: {
-      order: ['localStorage', 'navigator'],
+      order: ['localStorage'],
       caches: ['localStorage'],
       lookupLocalStorage: 'catvoice:language',
     },
