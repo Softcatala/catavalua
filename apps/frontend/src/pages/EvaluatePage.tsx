@@ -4,8 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { AudioPlayer } from '../components/AudioPlayer';
 import type { Clip, UniqueTranscription, VoteSummary, Vote } from '../types';
-import { DIMENSIONS, type Dimension } from '../types';
+import { DIMENSIONS, DIALECT_VALUES, type Dimension } from '../types';
 import { translateValue } from '../i18nValues';
+import { resolveDimension } from '../voteUtils';
 
 const SKIP_STORAGE_KEY = 'catvoice:skipped';
 
@@ -46,6 +47,8 @@ export function EvaluatePage({ username }: Props) {
   const [editMode, setEditMode] = useState(false);
   const [editText, setEditText] = useState('');
   const [copied, setCopied] = useState(false);
+  const [dialectPicker, setDialectPicker] = useState(false);
+  const [selectedDialect, setSelectedDialect] = useState('');
   // Prevents double-fetch when we push a new clipId to the URL ourselves
   const selfNavRef = useRef(false);
 
@@ -56,6 +59,8 @@ export function EvaluatePage({ username }: Props) {
     setError('');
     setSelectedTranscriptionId(null);
     setCopied(false);
+    setDialectPicker(false);
+    setSelectedDialect('');
   }
 
   function applyData(data: { clip: import('../types').Clip; uniqueTranscriptions: import('../types').UniqueTranscription[]; votes: VoteSummary[]; userVotes: Vote[] }) {
@@ -152,8 +157,19 @@ export function EvaluatePage({ username }: Props) {
     }
   };
 
+  const genderResolved = resolveDimension(state?.votes ?? [], 'gender', state?.clip.gender);
+  const dialectResolved = resolveDimension(state?.votes ?? [], 'dialect', state?.clip.detectedDialect);
+
   const vote = async (value: 1 | -1) => {
     if (!state || voting) return;
+
+    // Dialect has more than two possible values, so "incorrect" doesn't imply a
+    // specific alternative — ask the evaluator to pick the right one first.
+    if (dimension === 'dialect' && value === -1 && !dialectPicker) {
+      setDialectPicker(true);
+      return;
+    }
+
     setVoting(true);
     try {
       let targetId: string | undefined;
@@ -173,12 +189,25 @@ export function EvaluatePage({ username }: Props) {
         }
         targetId = voteTargetId != null ? String(voteTargetId) : undefined;
       } else if (dimension === 'gender') {
-        targetId = state.clip.gender ?? undefined;
+        targetId = genderResolved.value ?? undefined;
       } else {
-        targetId = state.clip.detectedDialect ?? undefined;
+        targetId = dialectResolved.value ?? undefined;
       }
 
       await api.castVote({ clipId: state.clip.clipId, dimension, targetId, username, value });
+
+      // Binary gender: an "incorrect" vote deterministically implies the other value,
+      // so raise it as a competing candidate for the next evaluator to confirm.
+      if (dimension === 'gender' && value === -1 && targetId) {
+        const opposite = targetId === 'male' ? 'female' : 'male';
+        await api.castVote({ clipId: state.clip.clipId, dimension, targetId: opposite, username, value: 1 });
+      }
+
+      // Dialect: the evaluator explicitly chose the correct value in the picker above.
+      if (dimension === 'dialect' && value === -1 && selectedDialect) {
+        await api.castVote({ clipId: state.clip.clipId, dimension, targetId: selectedDialect, username, value: 1 });
+      }
+
       loadNext();
     } catch (e) {
       setError(String(e));
@@ -186,11 +215,15 @@ export function EvaluatePage({ username }: Props) {
     }
   };
 
-  const userVoteForDimension = state?.userVotes.find((v) => v.dimension === dimension);
-  const voteSummaryForDimension = state?.votes.find((v) => v.dimension === dimension);
-  const netVotes = state?.votes
-    .filter((v) => v.dimension === dimension)
-    .reduce((s, v) => s + v.netVotes, 0) ?? 0;
+  const userVotesForDimension = state?.userVotes.filter((v) => v.dimension === dimension) ?? [];
+  // Prefer the negative vote when both exist (gender/dialect flips create a positive
+  // companion row too) — the negative one reflects the evaluator's actual judgement.
+  const userVoteForDimension = userVotesForDimension.find((v) => v.value === -1) ?? userVotesForDimension[0];
+  const netVotes = dimension === 'gender'
+    ? genderResolved.netVotes
+    : dimension === 'dialect'
+    ? dialectResolved.netVotes
+    : (state?.votes.filter((v) => v.dimension === dimension).reduce((max, v) => Math.max(max, v.netVotes), 0) ?? 0);
 
   const bestTx = state?.uniqueTranscriptions[0];
   const activeText = editMode ? editText : (bestTx?.text ?? state?.clip.candidate1 ?? state?.clip.candidate2 ?? '');
@@ -394,15 +427,15 @@ export function EvaluatePage({ username }: Props) {
             <div className="bg-white rounded-2xl border border-gray-200 p-5">
               <h3 className="font-semibold text-gray-700 mb-3">{t('evaluate.genderAnnotation')}</h3>
               <div className="text-2xl font-bold text-gray-800 mb-2">
-                {state.clip.gender ? translateValue(t, 'gender', state.clip.gender) : t('values.gender.unknown')}
+                {genderResolved.value ? translateValue(t, 'gender', genderResolved.value) : t('values.gender.unknown')}
               </div>
               <p className="text-sm text-gray-500">
                 {t('evaluate.genderInstruction')}
               </p>
-              {voteSummaryForDimension && (
+              {genderResolved.candidates.length > 0 && (
                 <div className="mt-3 text-sm text-gray-500">
-                  {t('evaluate.netVotes', { count: voteSummaryForDimension.netVotes })}
-                  {voteSummaryForDimension.isGolden && t('evaluate.goldenSuffix')}
+                  {t('evaluate.netVotes', { count: genderResolved.netVotes })}
+                  {genderResolved.isGolden && t('evaluate.goldenSuffix')}
                 </div>
               )}
             </div>
@@ -411,10 +444,10 @@ export function EvaluatePage({ username }: Props) {
           {dimension === 'dialect' && (
             <div className="bg-white rounded-2xl border border-gray-200 p-5">
               <h3 className="font-semibold text-gray-700 mb-3">{t('evaluate.dialectDetection')}</h3>
-              {state.clip.detectedDialect ? (
+              {dialectResolved.value ? (
                 <>
                   <div className="text-xl font-bold text-gray-800 mb-2">
-                    {translateValue(t, 'dialect', state.clip.detectedDialect)}
+                    {translateValue(t, 'dialect', dialectResolved.value)}
                   </div>
                   <p className="text-sm text-gray-500">
                     {t('evaluate.dialectInstruction')}
@@ -425,39 +458,75 @@ export function EvaluatePage({ username }: Props) {
                   {t('evaluate.noDialect')}
                 </p>
               )}
-              {voteSummaryForDimension && (
+              {dialectResolved.candidates.length > 0 && (
                 <div className="mt-3 text-sm text-gray-500">
-                  {t('evaluate.netVotes', { count: voteSummaryForDimension.netVotes })}
-                  {voteSummaryForDimension.isGolden && t('evaluate.goldenSuffix')}
+                  {t('evaluate.netVotes', { count: dialectResolved.netVotes })}
+                  {dialectResolved.isGolden && t('evaluate.goldenSuffix')}
+                </div>
+              )}
+
+              {dialectPicker && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t('evaluate.dialectPickerPrompt')}
+                  </label>
+                  <select
+                    value={selectedDialect}
+                    onChange={(e) => setSelectedDialect(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    autoFocus
+                  >
+                    <option value="">{t('evaluate.dialectPickerPlaceholder')}</option>
+                    {DIALECT_VALUES.filter((d) => d !== dialectResolved.value).map((d) => (
+                      <option key={d} value={d}>{translateValue(t, 'dialect', d)}</option>
+                    ))}
+                  </select>
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={() => vote(-1)}
+                      disabled={!selectedDialect || voting}
+                      className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white font-semibold py-2 rounded-lg transition"
+                    >
+                      {t('evaluate.confirmIncorrect')}
+                    </button>
+                    <button
+                      onClick={() => { setDialectPicker(false); setSelectedDialect(''); }}
+                      className="px-4 bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium py-2 rounded-lg transition"
+                    >
+                      {t('evaluate.cancel')}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
           )}
 
           {/* Vote buttons */}
-          <div className="flex gap-3">
-            <button
-              onClick={() => vote(1)}
-              disabled={voting || (dimension === 'transcription' && !activeText.trim()) || (dimension === 'dialect' && !state.clip.detectedDialect)}
-              className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
-            >
-              {t('evaluate.correct')}
-            </button>
-            <button
-              onClick={() => vote(-1)}
-              disabled={voting || (dimension === 'transcription' && !activeText.trim()) || (dimension === 'dialect' && !state.clip.detectedDialect)}
-              className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
-            >
-              {t('evaluate.incorrect')}
-            </button>
-            <button
-              onClick={skip}
-              disabled={voting}
-              className="px-6 bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium py-3 rounded-xl transition"
-            >
-              {t('evaluate.skip')}
-            </button>
-          </div>
+          {!dialectPicker && (
+            <div className="flex gap-3">
+              <button
+                onClick={() => vote(1)}
+                disabled={voting || (dimension === 'transcription' && !activeText.trim()) || (dimension === 'gender' && !genderResolved.value) || (dimension === 'dialect' && !dialectResolved.value)}
+                className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+              >
+                {t('evaluate.correct')}
+              </button>
+              <button
+                onClick={() => vote(-1)}
+                disabled={voting || (dimension === 'transcription' && !activeText.trim()) || (dimension === 'gender' && !genderResolved.value) || (dimension === 'dialect' && !dialectResolved.value)}
+                className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+              >
+                {t('evaluate.incorrect')}
+              </button>
+              <button
+                onClick={skip}
+                disabled={voting}
+                className="px-6 bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium py-3 rounded-xl transition"
+              >
+                {t('evaluate.skip')}
+              </button>
+            </div>
+          )}
 
           {/* Not relevant flag */}
           <div className="flex justify-center">

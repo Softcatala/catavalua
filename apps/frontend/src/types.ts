@@ -59,3 +59,16 @@ export interface ClipWithBest {
 export type Dimension = 'transcription' | 'gender' | 'dialect';
 
 export const DIMENSIONS: Dimension[] = ['transcription', 'gender', 'dialect'];
+
+export const GENDER_VALUES = ['male', 'female'] as const;
+
+export const DIALECT_VALUES = [
+  'central',
+  'valencian',
+  'balearic',
+  'northwestern',
+  'eastern',
+  'western',
+  'septentrional',
+  'alguerès',
+] as const;

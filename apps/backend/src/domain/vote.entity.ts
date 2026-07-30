@@ -1,12 +1,15 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Unique } from 'typeorm';
 import { Clip } from './clip.entity';
 
-// dimension: 'transcription' | 'gender' | (any future metadata field)
+// dimension: 'transcription' | 'gender' | 'dialect' | (any future metadata field)
 // For 'transcription' dimension, target_id is the transcription id (as string)
 // For other dimensions, target_id is the value being voted on (e.g. 'female')
+//
+// Uniqueness includes target_id so a user can hold independent votes on competing
+// candidates within the same dimension (e.g. -1 on 'female' and +1 on 'male' at once).
 
 @Entity('votes')
-@Unique(['clipId', 'dimension', 'username'])
+@Unique(['clipId', 'dimension', 'targetId', 'username'])
 export class Vote {
   @PrimaryGeneratedColumn()
   id: number;
