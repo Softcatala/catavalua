@@ -95,12 +95,58 @@ From HuggingFace (via Parquet/API):
 - Skip: tracked in browser localStorage, not persisted
 - User identity: username set in localStorage on first visit
 
-## After Making Changes
+## Backend Data Model
 
-After completing any code change, always:
-1. `docker compose up -d --build` — rebuild and restart production containers
-2. `git commit` + `git push` — commit and push to remote
+Three tables (SQLite via TypeORM, `synchronize: true` — schema follows the
+entities in `apps/backend/src/domain/`):
 
-## Domains (production)
+- **clips** — one row per dataset clip (`clip_id` primary key). `POST /clips`
+  is an upsert keyed on `clipId`.
+- **transcriptions** — candidate/model/human transcriptions for a clip.
+  `POST /transcriptions` is idempotent: re-posting the same
+  `(clipId, origin, text)` returns the existing row instead of duplicating.
+- **votes** — one row per `(clipId, dimension, username)`, upserted on
+  re-vote (`POST /votes`).
 
-Traefik routing domains are configured via `.env` at the repo root (see `.env.example`), not hardcoded in `docker-compose.yml`.
+Both `transcriptions` and `votes` have a foreign key to `clips` with
+`ON DELETE NO ACTION` — **deleting a clip requires deleting its
+transcriptions and votes first**, or the delete fails while children still
+reference it (`ClipService.remove` does this in the right order — follow
+that pattern if you add other cascading deletes).
+
+## API Reference
+
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/clips?search=&page=&limit=` | Paginated list, enriched with best transcription + vote summary |
+| `GET` | `/clips/:id` | Single clip |
+| `GET` | `/clips/:id/transcriptions` | All transcriptions for a clip |
+| `POST` | `/clips` | Upsert (by `clipId`) |
+| `POST` | `/clips/:id/tar-index` | Set audio location (`tarFile`/`tarOffset`/`tarSize`) |
+| `POST` | `/clips/:id/flag-irrelevant` | Records a relevance-flag vote |
+| `DELETE` | `/clips/:id` | Cascades to the clip's transcriptions + votes |
+| `POST` | `/transcriptions` | Create (idempotent by `clipId`+`origin`+`text`) |
+| `DELETE` | `/transcriptions/:id` | |
+| `POST` | `/votes` | Cast/update a vote (upsert) |
+| `DELETE` | `/votes?username=` | Remove all of a user's votes |
+| `GET` | `/votes/clip/:clipId` | Vote summary for a clip |
+| `GET` | `/votes/clip/:clipId/user/:username` | One user's votes on a clip |
+| `GET` | `/votes/stats` | Global stats |
+
+All `DELETE` routes are unauthenticated in the app itself — in production
+they're gated by infra-level auth in front of the API, not app code.
+
+## Deployment
+
+The live site is **not** deployed by running `docker compose up -d --build`
+locally — that only stands up your own instance (useful for self-hosting or
+local testing against real Traefik/domain config). Pushing to `main` on
+GitHub is what deploys the live site, via a CI/CD pipeline that lives
+outside this repo. There's nothing else to do after `git push`.
+
+The live site also runs behind a single domain with the API served under
+`/api` (see `apps/frontend/src/api.ts` — `VITE_API_BASE_URL` defaults to
+the relative path `/api`, baked into the frontend bundle at build time).
+The two-domain setup in this repo's own `docker-compose.yml`/`.env.example`
+is for standalone self-hosting, and doesn't reflect how the live site is
+actually configured.
