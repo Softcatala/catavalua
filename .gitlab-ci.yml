@@ -6,8 +6,18 @@ variables:
   PROJECT_TO_BE_DEPLOYED: 'docker/catavalua'
 
 stages:
+  - test
   - build
   - deploy
+
+test-backend:
+  image: node:22-alpine
+  stage: test
+  before_script:
+    - corepack enable
+    - pnpm install --frozen-lockfile
+  script:
+    - pnpm --filter backend run test
 
 .build:
   image: docker:latest
