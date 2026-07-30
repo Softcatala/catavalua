@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Param,
   Query,
   Body,
@@ -77,6 +78,13 @@ export class ClipController {
   async flagIrrelevant(@Param('id') id: string, @Query('username') username: string) {
     if (!username) throw new BadRequestException('username required');
     await this.clipService.flagIrrelevant(id, username);
+    return { ok: true };
+  }
+
+  // Gated at the Traefik layer (scauth) — not publicly reachable unauthenticated.
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    await this.clipService.remove(id);
     return { ok: true };
   }
 }

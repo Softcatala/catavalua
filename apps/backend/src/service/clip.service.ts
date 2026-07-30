@@ -54,6 +54,15 @@ export class ClipService {
     await this.clips.update({ clipId }, { tarFile, tarOffset, tarSize });
   }
 
+  async remove(clipId: string): Promise<void> {
+    const clip = await this.clips.findOne({ where: { clipId } });
+    if (!clip) throw new NotFoundException(`Clip ${clipId} not found`);
+    // FKs are ON DELETE NO ACTION, so children must go first.
+    await this.votes.delete({ clipId });
+    await this.transcriptions.delete({ clipId });
+    await this.clips.delete({ clipId });
+  }
+
   // Returns clips that the given username hasn't voted on for the given dimension
   async nextForEvaluation(username: string, dimension: string, skipIds: string[] = []): Promise<Clip | null> {
     // Get clip IDs this user has already voted on for this dimension
