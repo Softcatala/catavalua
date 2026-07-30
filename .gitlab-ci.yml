@@ -1,0 +1,44 @@
+include:
+  - project: 'docker/process-webhooks'
+    file: '/gitlab/deploy.yml'
+
+variables:
+  PROJECT_TO_BE_DEPLOYED: 'docker/catavalua'
+
+stages:
+  - build
+  - deploy
+
+.build:
+  image: docker:latest
+  services:
+    - docker:dind
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  before_script:
+    - export DATETAG=$(date +%Y%m%d-%H%M%S)
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+
+build-backend:
+  extends: .build
+  stage: build
+  script:
+    - docker build -f apps/backend/Dockerfile --cache-from $CI_REGISTRY_IMAGE/backend:latest --tag $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA --tag $CI_REGISTRY_IMAGE/backend:$DATETAG --tag $CI_REGISTRY_IMAGE/backend:latest .
+    - docker push $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA
+    - docker push $CI_REGISTRY_IMAGE/backend:$DATETAG
+    - docker push $CI_REGISTRY_IMAGE/backend:latest
+
+build-frontend:
+  extends: .build
+  stage: build
+  script:
+    - docker build -f apps/frontend/Dockerfile --build-arg VITE_API_BASE_URL=/api --cache-from $CI_REGISTRY_IMAGE/frontend:latest --tag $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHA --tag $CI_REGISTRY_IMAGE/frontend:$DATETAG --tag $CI_REGISTRY_IMAGE/frontend:latest .
+    - docker push $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHA
+    - docker push $CI_REGISTRY_IMAGE/frontend:$DATETAG
+    - docker push $CI_REGISTRY_IMAGE/frontend:latest
+
+deploy:
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  extends: .default-deploy
