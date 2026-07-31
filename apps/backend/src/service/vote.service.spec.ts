@@ -83,4 +83,23 @@ describe('VoteService', () => {
 
     expect(valencian).toMatchObject({ netVotes: 2, isGolden: true });
   });
+
+  it('excludes scripts/infer_dialect.py\'s bulk-vote username from stats but still counts it in summaryForClip', async () => {
+    // Bot suggests a dialect on clip-2 — nobody else has weighed in yet.
+    await service.cast({ clipId: 'clip-2', dimension: 'dialect', targetId: 'valencian', username: 'derivat-de-poblacio', value: 1 });
+    // Real evaluator does independent work on clip-1.
+    await service.cast({ clipId: 'clip-1', dimension: 'gender', targetId: 'male', username: 'alice', value: 1 });
+
+    const stats = await service.stats();
+    const dialect = stats.dimensions.find((d) => d.dimension === 'dialect');
+    const gender = stats.dimensions.find((d) => d.dimension === 'gender');
+
+    // The bot-only vote shouldn't make clip-2 look human-evaluated in stats...
+    expect(dialect).toBeUndefined();
+    expect(gender).toMatchObject({ evaluated: 1, golden: 0 });
+
+    // ...but it still surfaces as a real candidate for a human to confirm/reject.
+    const summary = await service.summaryForClip('clip-2');
+    expect(summary.find((s) => s.targetId === 'valencian')).toMatchObject({ netVotes: 1, isGolden: false });
+  });
 });

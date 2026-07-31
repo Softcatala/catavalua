@@ -34,3 +34,8 @@ __pycache__/
 /play.py
 /run_*.py
 scripts/play_audio.py
+
+# scripts/build_town_dialects.py + scripts/infer_dialect.py regenerable
+# working files — town_dialects.tsv (the actual gazetteer) is tracked
+scripts/reference/.*
+scripts/reference/video_town_matches.tsv

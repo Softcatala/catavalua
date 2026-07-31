@@ -67,6 +67,50 @@ The script:
 - Deletes the temp WAV file immediately after (win or fail)
 - Exponential backoff on CLI rate limit errors (5s → 10s → 20s → 40s → 120s)
 
+## Dialect Inference (scripts/infer_dialect.py)
+
+Infers a clip's dialect from the town its source YouTube video was recorded
+in (most source videos are municipal plenary sessions — the speaker's home
+town is a much stronger signal than guessing from a few seconds of audio).
+Applied as a **vote** (`dimension: 'dialect'`, `username: 'derivat-de-poblacio'`)
+via the existing `POST /votes` endpoint, not a direct write to
+`clips.detected_dialect` — that column holds the transcription pipeline's
+Gemini audio-based per-clip guess (`scripts/transcribe.py`'s `dialect_notes`),
+and overwriting it would lose that value with no history. The frontend's
+`resolveDimension()` (`apps/frontend/src/voteUtils.ts`) already shows
+whichever candidate has the most net votes over the clip's stored value, so
+one vote is enough to surface the inferred dialect as the leading (but not
+yet "golden") candidate — a real evaluator can still confirm or overturn it,
+and the original model guess is never touched.
+
+`scripts/reference/town_dialects.tsv` is a hand-built gazetteer (town →
+comarca → territori → dialecte) covering the whole Catalan-speaking domain
+(Catalunya, País Valencià, Illes Balears, Catalunya Nord, Franja de Ponent,
+Andorra, Alguer), sourced from Catalan Wikipedia's municipi lists plus the
+standard IEC/GEC dialect classification. Rebuild it (e.g. after Wikipedia's
+lists change) with:
+
+```bash
+python scripts/build_town_dialects.py
+```
+
+Three-step pipeline, mirroring `transcribe.py`'s style:
+
+```bash
+python scripts/infer_dialect.py --fetch-metadata   # oEmbed title+channel per distinct source video (resumable)
+python scripts/infer_dialect.py --match             # match against the gazetteer -> scripts/reference/video_town_matches.tsv
+python scripts/infer_dialect.py --apply --min-confidence high [--dry-run]  # cast dialect votes on matched clips
+```
+
+Not every source video is a town-council meeting — this dataset also
+includes Generalitat de Catalunya seminars, Diputació sessions, and personal
+channels — so `--match` tags every row with a `confidence` (`high`/`medium`/
+`low`) and a `channel_level` (`municipi` vs `provincial-or-generalitat`) and
+**review the TSV before applying**; nothing is written to any backend until
+`--apply` is run explicitly. `--apply` checks each clip already exists via
+`GET /clips/:id` before patching — it never lets the upsert silently create a
+new, sparse clip for a `clipId` that isn't already in that environment's DB.
+
 ## Audio Format
 
 - TAR files: `audio-0.tar` … `audio-50.tar` (~2.1 GB each, ~107 GB total)

@@ -10,6 +10,14 @@ export interface VoteSummary {
   isGolden: boolean;
 }
 
+// Usernames used by scripts that cast votes programmatically rather than
+// real evaluators (e.g. scripts/infer_dialect.py's town-derived dialect
+// votes). Their votes still count normally everywhere else — including
+// summaryForClip/resolveDimension, so they still surface as a candidate for
+// a human to confirm or reject — but stats() excludes them so evaluation
+// progress reflects actual human review, not bulk-imported suggestions.
+const SYSTEM_VOTE_USERNAMES = ['derivat-de-poblacio'];
+
 @Injectable()
 export class VoteService {
   constructor(
@@ -82,6 +90,7 @@ export class VoteService {
       .select('v.dimension', 'dimension')
       .addSelect('v.clip_id', 'clipId')
       .addSelect('SUM(v.value)', 'net')
+      .where('v.username NOT IN (:...usernames)', { usernames: SYSTEM_VOTE_USERNAMES })
       .groupBy('v.dimension')
       .addGroupBy('v.clip_id')
       .getRawMany<{ dimension: string; clipId: string; net: string }>();
