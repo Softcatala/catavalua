@@ -7,8 +7,6 @@
     "loading": "Carregant…",
     "evaluated": "avaluats",
     "golden": "daurats",
-    "irrelevant": "irrellevants",
-    "flagged": "marcats",
     "noClipsFound": "No s'han trobat clips.",
     "prevPage": "← Anterior",
     "nextPage": "Següent →",
@@ -16,7 +14,10 @@
     "noTranscription": "(sense transcripció)",
     "via": "via {{origin}}",
     "tar": "tar-{{file}}",
-    "goldenBadge": "✓ daurat"
+    "goldenBadge": "✓ daurat",
+    "hoursProgress": "Hores validades",
+    "hoursProgressTooltip": "Progrés mesurat en hores d'àudio, no en nombre de clips — verd fosc és daurat (confirmat per 2+ avaluadors), verd clar és avaluat però encara no daurat.",
+    "hoursSummary": "{{golden}}h daurades, {{evaluated}}h avaluades de {{total}}h en total"
   },
   "detail": {
     "backToList": "← Tornar a la llista",
@@ -53,7 +54,7 @@
     "genderInstruction": "Escolteu el clip i voteu si aquesta anotació de gènere és correcta.",
     "dialectDetection": "Detecció de dialecte",
     "dialectInstruction": "El Gemini ha detectat aquesta variant dialectal del català. Escolteu i voteu si és correcta.",
-    "noDialect": "No s'ha detectat cap dialecte. Executeu l'script de transcripció amb Gemini per omplir aquest camp.",
+    "noDialect": "Encara no hi ha cap dialecte suggerit per a aquest clip — escolta'l i tria el que sentis a sota.",
     "netVotes": "Vots nets: {{count}}",
     "goldenSuffix": " ✓ daurat",
     "willSave": "Es desarà com a correcció humana",
@@ -66,6 +67,7 @@
     "dialectPickerPrompt": "Quin dialecte és realment?",
     "dialectPickerPlaceholder": "Selecciona el dialecte correcte…",
     "confirmIncorrect": "Confirma incorrecte",
+    "suggestDialect": "Suggereix aquest dialecte",
     "skip": "Omet",
     "notRelevant": "⚑ No és en català / No és rellevant",
     "notRelevantTitle": "Marca aquest clip com a no català o irrellevant",

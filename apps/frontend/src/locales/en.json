@@ -7,8 +7,6 @@
     "loading": "Loading…",
     "evaluated": "evaluated",
     "golden": "golden",
-    "irrelevant": "irrelevant",
-    "flagged": "flagged",
     "noClipsFound": "No clips found.",
     "prevPage": "← Prev",
     "nextPage": "Next →",
@@ -16,7 +14,10 @@
     "noTranscription": "(no transcription)",
     "via": "via {{origin}}",
     "tar": "tar-{{file}}",
-    "goldenBadge": "✓ golden"
+    "goldenBadge": "✓ golden",
+    "hoursProgress": "Hours validated",
+    "hoursProgressTooltip": "Progress measured in hours of audio, not clip count — dark green is golden (confirmed by 2+ evaluators), light green is evaluated but not yet golden.",
+    "hoursSummary": "{{golden}}h golden, {{evaluated}}h evaluated of {{total}}h total"
   },
   "detail": {
     "backToList": "← Back to list",
@@ -53,7 +54,7 @@
     "genderInstruction": "Listen to the clip and vote whether this gender annotation is correct.",
     "dialectDetection": "Dialect detection",
     "dialectInstruction": "Gemini detected this Catalan dialect variant. Listen and vote whether it is correct.",
-    "noDialect": "No dialect detected yet. Run the transcription script with Gemini to populate this field.",
+    "noDialect": "No dialect suggested yet for this clip — listen and choose the one you hear below.",
     "netVotes": "Net votes: {{count}}",
     "goldenSuffix": " ✓ golden",
     "willSave": "Will save as a human correction",
@@ -66,6 +67,7 @@
     "dialectPickerPrompt": "Which dialect is it actually?",
     "dialectPickerPlaceholder": "Select the correct dialect…",
     "confirmIncorrect": "Confirm incorrect",
+    "suggestDialect": "Suggest this dialect",
     "skip": "Skip",
     "notRelevant": "⚑ Not in Catalan / Not relevant",
     "notRelevantTitle": "Flag this clip as not in Catalan or otherwise irrelevant",

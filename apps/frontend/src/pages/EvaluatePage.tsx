@@ -215,6 +215,22 @@ export function EvaluatePage({ username }: Props) {
     }
   };
 
+  // Most clips have no dialect signal at all (no audio-model guess, no
+  // town-derived vote) — rather than a dead-end with disabled Correct/Incorrect
+  // buttons, let the evaluator suggest one from scratch. Just a single upvote:
+  // there's no existing candidate to downvote.
+  const suggestDialect = async () => {
+    if (!state || voting || !selectedDialect) return;
+    setVoting(true);
+    try {
+      await api.castVote({ clipId: state.clip.clipId, dimension: 'dialect', targetId: selectedDialect, username, value: 1 });
+      loadNext();
+    } catch (e) {
+      setError(String(e));
+      setVoting(false);
+    }
+  };
+
   const userVotesForDimension = state?.userVotes.filter((v) => v.dimension === dimension) ?? [];
   // Prefer the negative vote when both exist (gender/dialect flips create a positive
   // companion row too) — the negative one reflects the evaluator's actual judgement.
@@ -465,7 +481,8 @@ export function EvaluatePage({ username }: Props) {
                 </div>
               )}
 
-              {dialectPicker && (
+              {/* Evaluator flagged the current suggestion as wrong — pick the actual dialect */}
+              {dialectPicker && dialectResolved.value && (
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     {t('evaluate.dialectPickerPrompt')}
@@ -498,22 +515,60 @@ export function EvaluatePage({ username }: Props) {
                   </div>
                 </div>
               )}
+
+              {/* Nothing set at all yet — let the evaluator suggest one directly, no dead end */}
+              {!dialectResolved.value && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t('evaluate.dialectPickerPrompt')}
+                  </label>
+                  <select
+                    value={selectedDialect}
+                    onChange={(e) => setSelectedDialect(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    autoFocus
+                  >
+                    <option value="">{t('evaluate.dialectPickerPlaceholder')}</option>
+                    {DIALECT_VALUES.map((d) => (
+                      <option key={d} value={d}>{translateValue(t, 'dialect', d)}</option>
+                    ))}
+                  </select>
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={suggestDialect}
+                      disabled={!selectedDialect || voting}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold py-2 rounded-lg transition"
+                    >
+                      {t('evaluate.suggestDialect')}
+                    </button>
+                    <button
+                      onClick={skip}
+                      disabled={voting}
+                      className="px-4 bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium py-2 rounded-lg transition"
+                    >
+                      {t('evaluate.skip')}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Vote buttons */}
-          {!dialectPicker && (
+          {/* Vote buttons — hidden while the dialect correction picker or the
+              "suggest one from scratch" picker (which has its own Suggest+Skip
+              row above) is the active UI */}
+          {!dialectPicker && !(dimension === 'dialect' && !dialectResolved.value) && (
             <div className="flex gap-3">
               <button
                 onClick={() => vote(1)}
-                disabled={voting || (dimension === 'transcription' && !activeText.trim()) || (dimension === 'gender' && !genderResolved.value) || (dimension === 'dialect' && !dialectResolved.value)}
+                disabled={voting || (dimension === 'transcription' && !activeText.trim()) || (dimension === 'gender' && !genderResolved.value)}
                 className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
               >
                 {t('evaluate.correct')}
               </button>
               <button
                 onClick={() => vote(-1)}
-                disabled={voting || (dimension === 'transcription' && !activeText.trim()) || (dimension === 'gender' && !genderResolved.value) || (dimension === 'dialect' && !dialectResolved.value)}
+                disabled={voting || (dimension === 'transcription' && !activeText.trim()) || (dimension === 'gender' && !genderResolved.value)}
                 className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
               >
                 {t('evaluate.incorrect')}

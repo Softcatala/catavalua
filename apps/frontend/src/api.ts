@@ -70,8 +70,9 @@ export const api = {
 
   getVoteStats: () =>
     request<{
-      dimensions: { dimension: string; evaluated: number; golden: number }[];
+      dimensions: { dimension: string; evaluated: number; golden: number; evaluatedHours: number; goldenHours: number }[];
       flaggedIrrelevant: number;
+      totalHours: number;
     }>('/votes/stats'),
 
   audioUrl: (clipId: string) => `${BASE}/audio/${clipId}`,

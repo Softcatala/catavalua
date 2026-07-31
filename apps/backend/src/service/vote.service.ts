@@ -2,6 +2,7 @@ import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { Vote } from '../domain/vote.entity';
+import { Clip } from '../domain/clip.entity';
 
 export interface VoteSummary {
   dimension: string;
@@ -22,6 +23,7 @@ const SYSTEM_VOTE_USERNAMES = ['derivat-de-poblacio'];
 export class VoteService {
   constructor(
     @InjectRepository(Vote) private readonly repo: Repository<Vote>,
+    @InjectRepository(Clip) private readonly clips: Repository<Clip>,
   ) {}
 
   async cast(data: {
@@ -82,20 +84,24 @@ export class VoteService {
   }
 
   async stats(): Promise<{
-    dimensions: { dimension: string; evaluated: number; golden: number }[];
+    dimensions: { dimension: string; evaluated: number; golden: number; evaluatedHours: number; goldenHours: number }[];
     flaggedIrrelevant: number;
+    totalHours: number;
   }> {
     const rows = await this.repo
       .createQueryBuilder('v')
+      .innerJoin('v.clip', 'c')
       .select('v.dimension', 'dimension')
       .addSelect('v.clip_id', 'clipId')
       .addSelect('SUM(v.value)', 'net')
+      .addSelect('c.duration', 'duration')
       .where('v.username NOT IN (:...usernames)', { usernames: SYSTEM_VOTE_USERNAMES })
       .groupBy('v.dimension')
       .addGroupBy('v.clip_id')
-      .getRawMany<{ dimension: string; clipId: string; net: string }>();
+      .addGroupBy('c.duration')
+      .getRawMany<{ dimension: string; clipId: string; net: string; duration: string | null }>();
 
-    const map: Record<string, { evaluated: number; golden: number }> = {};
+    const map: Record<string, { evaluated: number; golden: number; evaluatedSeconds: number; goldenSeconds: number }> = {};
     let flaggedIrrelevant = 0;
 
     for (const row of rows) {
@@ -104,17 +110,30 @@ export class VoteService {
         flaggedIrrelevant++;
         continue;
       }
-      if (!map[d]) map[d] = { evaluated: 0, golden: 0 };
+      if (!map[d]) map[d] = { evaluated: 0, golden: 0, evaluatedSeconds: 0, goldenSeconds: 0 };
+      const seconds = Number(row.duration) || 0;
       map[d].evaluated++;
-      if (Number(row.net) >= 2) map[d].golden++;
+      map[d].evaluatedSeconds += seconds;
+      if (Number(row.net) >= 2) {
+        map[d].golden++;
+        map[d].goldenSeconds += seconds;
+      }
     }
 
-    const dimensions = Object.entries(map).map(([dimension, { evaluated, golden }]) => ({
+    const dimensions = Object.entries(map).map(([dimension, { evaluated, golden, evaluatedSeconds, goldenSeconds }]) => ({
       dimension,
       evaluated,
       golden,
+      evaluatedHours: evaluatedSeconds / 3600,
+      goldenHours: goldenSeconds / 3600,
     }));
 
-    return { dimensions, flaggedIrrelevant };
+    const totalRow = await this.clips
+      .createQueryBuilder('c')
+      .select('SUM(c.duration)', 'total')
+      .getRawOne<{ total: string | null }>();
+    const totalHours = (Number(totalRow?.total) || 0) / 3600;
+
+    return { dimensions, flaggedIrrelevant, totalHours };
   }
 }

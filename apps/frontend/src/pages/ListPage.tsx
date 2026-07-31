@@ -5,8 +5,39 @@ import { api } from '../api';
 import type { ClipWithBest } from '../types';
 import { translateValue } from '../i18nValues';
 
-interface DimStat { dimension: string; evaluated: number; golden: number }
-interface Stats { dimensions: DimStat[]; flaggedIrrelevant: number }
+interface DimStat { dimension: string; evaluated: number; golden: number; evaluatedHours: number; goldenHours: number }
+interface Stats { dimensions: DimStat[]; flaggedIrrelevant: number; totalHours: number }
+
+function HoursProgressBar({ evaluatedHours, goldenHours, totalHours }: { evaluatedHours: number; goldenHours: number; totalHours: number }) {
+  const { t } = useTranslation();
+  const goldenPct = totalHours > 0 ? Math.min(100, (goldenHours / totalHours) * 100) : 0;
+  const evaluatedPct = totalHours > 0 ? Math.min(100 - goldenPct, ((evaluatedHours - goldenHours) / totalHours) * 100) : 0;
+
+  return (
+    <div className="mt-3">
+      <div className="flex items-center gap-1 mb-1">
+        <span className="text-xs text-gray-400">{t('list.hoursProgress')}</span>
+        <span
+          title={t('list.hoursProgressTooltip')}
+          className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-gray-200 text-gray-500 text-[10px] leading-none cursor-help select-none"
+        >
+          ?
+        </span>
+      </div>
+      <div className="h-2 rounded-full bg-gray-100 overflow-hidden flex">
+        <div className="h-full bg-green-600" style={{ width: `${goldenPct}%` }} />
+        <div className="h-full bg-green-300" style={{ width: `${evaluatedPct}%` }} />
+      </div>
+      <div className="text-xs text-gray-400 mt-1">
+        {t('list.hoursSummary', {
+          golden: goldenHours.toFixed(1),
+          evaluated: evaluatedHours.toFixed(1),
+          total: totalHours.toFixed(1),
+        })}
+      </div>
+    </div>
+  );
+}
 
 export function ListPage() {
   const { t, i18n } = useTranslation();
@@ -56,9 +87,9 @@ export function ListPage() {
         </Link>
       </div>
 
-      {stats && (stats.dimensions.length > 0 || stats.flaggedIrrelevant > 0) && (
+      {stats && stats.dimensions.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-          {stats.dimensions.map(({ dimension, evaluated, golden }) => (
+          {stats.dimensions.map(({ dimension, evaluated, golden, evaluatedHours, goldenHours }) => (
             <div key={dimension} className="bg-white border border-gray-200 rounded-xl p-4">
               <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
                 {t(`dimension.${dimension}`, { defaultValue: dimension })}
@@ -73,19 +104,9 @@ export function ListPage() {
                   <div className="text-xs text-gray-400">{t('list.golden')}</div>
                 </div>
               </div>
+              <HoursProgressBar evaluatedHours={evaluatedHours} goldenHours={goldenHours} totalHours={stats.totalHours} />
             </div>
           ))}
-          {stats.flaggedIrrelevant > 0 && (
-            <div className="bg-white border border-orange-100 rounded-xl p-4">
-              <div className="text-xs font-medium text-orange-400 uppercase tracking-wide mb-2">
-                {t('list.irrelevant')}
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-orange-500">{stats.flaggedIrrelevant.toLocaleString()}</div>
-                <div className="text-xs text-gray-400">{t('list.flagged')}</div>
-              </div>
-            </div>
-          )}
         </div>
       )}
 

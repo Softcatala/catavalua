@@ -33,8 +33,10 @@ describe('VoteService', () => {
 
     // Vote.clipId is a real FK against clips, so seed the clips these tests vote on.
     const clips: Repository<Clip> = module.get(getRepositoryToken(Clip));
-    await clips.save(clips.create({ clipId: 'clip-1', gender: 'female' }));
-    await clips.save(clips.create({ clipId: 'clip-2', detectedDialect: 'central' }));
+    await clips.save(clips.create({ clipId: 'clip-1', gender: 'female', duration: 3600 })); // 1h
+    await clips.save(clips.create({ clipId: 'clip-2', detectedDialect: 'central', duration: 1800 })); // 0.5h
+    // Never voted on — should still count toward totalHours but not evaluated/golden hours.
+    await clips.save(clips.create({ clipId: 'clip-3', duration: 3600 })); // 1h
   });
 
   it('lets a user hold independent votes on competing candidates within one dimension', async () => {
@@ -101,5 +103,21 @@ describe('VoteService', () => {
     // ...but it still surfaces as a real candidate for a human to confirm/reject.
     const summary = await service.summaryForClip('clip-2');
     expect(summary.find((s) => s.targetId === 'valencian')).toMatchObject({ netVotes: 1, isGolden: false });
+  });
+
+  it('weights evaluated/golden hours by clip duration, and totalHours covers every clip regardless of votes', async () => {
+    // clip-1 (1h): reaches golden gender.
+    await service.cast({ clipId: 'clip-1', dimension: 'gender', targetId: 'male', username: 'dave', value: 1 });
+    await service.cast({ clipId: 'clip-1', dimension: 'gender', targetId: 'male', username: 'erin', value: 1 });
+    // clip-2 (0.5h): evaluated but not yet golden.
+    await service.cast({ clipId: 'clip-2', dimension: 'gender', targetId: 'female', username: 'alice', value: 1 });
+    // clip-3 (1h) is never voted on.
+
+    const stats = await service.stats();
+    const gender = stats.dimensions.find((d) => d.dimension === 'gender');
+
+    expect(gender).toMatchObject({ evaluated: 2, golden: 1, evaluatedHours: 1.5, goldenHours: 1 });
+    // clip-1 + clip-2 + clip-3 = 1 + 0.5 + 1 = 2.5h, including the never-voted-on clip.
+    expect(stats.totalHours).toBe(2.5);
   });
 });

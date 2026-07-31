@@ -97,6 +97,24 @@ export class ClipService {
       if (agreedClip) return agreedClip;
     }
 
+    // For dialect: most clips have no dialect signal at all (no Gemini guess,
+    // no town-derived vote — see scripts/infer_dialect.py), which sends the
+    // evaluator to a dead-end clip with nothing to confirm/correct. Prefer
+    // clips that DO have a signal — either clip.detected_dialect, or an
+    // existing 'dialect' vote (e.g. from the bulk town-inference import) —
+    // so evaluators mostly see clips they can actually act on.
+    if (dimension === 'dialect') {
+      const withSignal = await buildQb(excludeIds)
+        .andWhere(`(clip.detected_dialect IS NOT NULL OR clip.clip_id IN (
+          SELECT v.clip_id FROM votes v WHERE v.dimension = 'dialect'
+        ))`)
+        .orderBy('RANDOM()')
+        .limit(1)
+        .getOne();
+
+      if (withSignal) return withSignal;
+    }
+
     const result = await buildQb(excludeIds).orderBy('RANDOM()').limit(1).getOne();
 
     // If user has evaluated all clips, cycle back (but still exclude irrelevant)
