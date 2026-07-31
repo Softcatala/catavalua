@@ -15,15 +15,7 @@ function HoursProgressBar({ evaluatedHours, goldenHours, totalHours }: { evaluat
 
   return (
     <div className="mt-3">
-      <div className="flex items-center gap-1 mb-1">
-        <span className="text-xs text-gray-400">{t('list.hoursProgress')}</span>
-        <span
-          title={t('list.hoursProgressTooltip')}
-          className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-gray-200 text-gray-500 text-[10px] leading-none cursor-help select-none"
-        >
-          ?
-        </span>
-      </div>
+      <div className="text-xs text-gray-400 mb-1">{t('list.hoursProgress')}</div>
       <div className="h-2 rounded-full bg-gray-100 overflow-hidden flex">
         <div className="h-full bg-green-600" style={{ width: `${goldenPct}%` }} />
         <div className="h-full bg-green-300" style={{ width: `${evaluatedPct}%` }} />

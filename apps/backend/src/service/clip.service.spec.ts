@@ -10,6 +10,7 @@ describe('ClipService', () => {
   let service: ClipService;
   let clips: Repository<Clip>;
   let votes: Repository<Vote>;
+  let transcriptions: Repository<Transcription>;
 
   beforeEach(async () => {
     const module = await Test.createTestingModule({
@@ -28,6 +29,7 @@ describe('ClipService', () => {
     service = module.get(ClipService);
     clips = module.get(getRepositoryToken(Clip));
     votes = module.get(getRepositoryToken(Vote));
+    transcriptions = module.get(getRepositoryToken(Transcription));
   });
 
   describe('nextForEvaluation dialect priority', () => {
@@ -63,6 +65,52 @@ describe('ClipService', () => {
 
       const picked = await service.nextForEvaluation('alice', 'dialect', ['has-detected-dialect']);
       expect(picked?.clipId).toBe('no-signal');
+    });
+  });
+
+  describe('nextForEvaluation transcription priority', () => {
+    it('prefers a clip with indexed audio AND 2+ model agreement over an unindexed one', async () => {
+      await clips.save(clips.create({ clipId: 'not-indexed' }));
+      await clips.save(clips.create({ clipId: 'indexed-and-agreed', tarFile: 1, tarOffset: 0, tarSize: 100 }));
+      await transcriptions.save(transcriptions.create({ clipId: 'indexed-and-agreed', origin: 'gemini-a', text: 'hola' }));
+      await transcriptions.save(transcriptions.create({ clipId: 'indexed-and-agreed', origin: 'gemini-b', text: 'hola' }));
+
+      const picked = await service.nextForEvaluation('alice', 'transcription', ['not-indexed']);
+      expect(picked?.clipId).toBe('indexed-and-agreed');
+    });
+
+    it('prefers an indexed clip without agreement over an unindexed one when no agreed+indexed clip exists', async () => {
+      await clips.save(clips.create({ clipId: 'not-indexed' }));
+      await clips.save(clips.create({ clipId: 'indexed-only', tarFile: 1, tarOffset: 0, tarSize: 100 }));
+
+      const picked = await service.nextForEvaluation('alice', 'transcription', []);
+      expect(picked?.clipId).toBe('indexed-only');
+    });
+
+    it('falls back to an unindexed clip once every indexed clip is excluded', async () => {
+      await clips.save(clips.create({ clipId: 'not-indexed' }));
+      await clips.save(clips.create({ clipId: 'indexed-only', tarFile: 1, tarOffset: 0, tarSize: 100 }));
+
+      const picked = await service.nextForEvaluation('alice', 'transcription', ['indexed-only']);
+      expect(picked?.clipId).toBe('not-indexed');
+    });
+  });
+
+  describe('nextForEvaluation gender priority', () => {
+    it('prefers a clip with indexed audio over one without', async () => {
+      await clips.save(clips.create({ clipId: 'not-indexed', gender: 'female' }));
+      await clips.save(clips.create({ clipId: 'indexed', tarFile: 1, tarOffset: 0, tarSize: 100, gender: 'male' }));
+
+      const picked = await service.nextForEvaluation('alice', 'gender', []);
+      expect(picked?.clipId).toBe('indexed');
+    });
+
+    it('falls back to an unindexed clip once every indexed clip is excluded', async () => {
+      await clips.save(clips.create({ clipId: 'not-indexed' }));
+      await clips.save(clips.create({ clipId: 'indexed', tarFile: 1, tarOffset: 0, tarSize: 100 }));
+
+      const picked = await service.nextForEvaluation('alice', 'gender', ['indexed']);
+      expect(picked?.clipId).toBe('not-indexed');
     });
   });
 });

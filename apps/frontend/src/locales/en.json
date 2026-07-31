@@ -16,7 +16,6 @@
     "tar": "tar-{{file}}",
     "goldenBadge": "✓ golden",
     "hoursProgress": "Hours validated",
-    "hoursProgressTooltip": "Progress measured in hours of audio, not clip count — dark green is golden (confirmed by 2+ evaluators), light green is evaluated but not yet golden.",
     "hoursSummary": "{{golden}}h golden, {{evaluated}}h evaluated of {{total}}h total"
   },
   "detail": {

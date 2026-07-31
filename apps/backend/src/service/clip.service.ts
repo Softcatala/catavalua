@@ -81,10 +81,13 @@ export class ClipService {
       return qb;
     };
 
-    // For transcription dimension: prefer clips where 2+ models agree on the same text
-    // (strong signal — worth evaluating first). Use a subquery via raw SQL.
+    // For transcription dimension: prefer clips whose audio is actually
+    // indexed (tar_file set), so the evaluator can listen rather than hit
+    // "audio not indexed yet" — and among those, prefer 2+ model agreement
+    // on the same text (a strong quality signal) when available.
     if (dimension === 'transcription') {
-      const agreedClip = await buildQb(excludeIds)
+      const agreedAndIndexed = await buildQb(excludeIds)
+        .andWhere('clip.tar_file IS NOT NULL')
         .andWhere(`clip.clip_id IN (
           SELECT t.clip_id FROM transcriptions t
           GROUP BY t.clip_id, t.text
@@ -94,7 +97,27 @@ export class ClipService {
         .limit(1)
         .getOne();
 
-      if (agreedClip) return agreedClip;
+      if (agreedAndIndexed) return agreedAndIndexed;
+
+      const indexedOnly = await buildQb(excludeIds)
+        .andWhere('clip.tar_file IS NOT NULL')
+        .orderBy('RANDOM()')
+        .limit(1)
+        .getOne();
+
+      if (indexedOnly) return indexedOnly;
+    }
+
+    // For gender: same audio-availability concern as transcription — prefer
+    // clips the evaluator can actually listen to.
+    if (dimension === 'gender') {
+      const indexed = await buildQb(excludeIds)
+        .andWhere('clip.tar_file IS NOT NULL')
+        .orderBy('RANDOM()')
+        .limit(1)
+        .getOne();
+
+      if (indexed) return indexed;
     }
 
     // For dialect: most clips have no dialect signal at all (no Gemini guess,

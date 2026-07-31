@@ -16,7 +16,6 @@
     "tar": "tar-{{file}}",
     "goldenBadge": "✓ daurat",
     "hoursProgress": "Hores validades",
-    "hoursProgressTooltip": "Progrés mesurat en hores d'àudio, no en nombre de clips — verd fosc és daurat (confirmat per 2+ avaluadors), verd clar és avaluat però encara no daurat.",
     "hoursSummary": "{{golden}}h daurades, {{evaluated}}h avaluades de {{total}}h en total"
   },
   "detail": {
