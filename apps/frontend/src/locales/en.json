@@ -65,7 +65,7 @@
     "incorrect": "👎 Incorrect",
     "dialectPickerPrompt": "Which dialect is it actually?",
     "dialectPickerPlaceholder": "Select the correct dialect…",
-    "confirmIncorrect": "Confirm incorrect",
+    "recordDialect": "Record dialect",
     "suggestDialect": "Suggest this dialect",
     "skip": "Skip",
     "notRelevant": "⚑ Not in Catalan / Not relevant",

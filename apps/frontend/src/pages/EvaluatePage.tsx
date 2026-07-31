@@ -502,9 +502,9 @@ export function EvaluatePage({ username }: Props) {
                     <button
                       onClick={() => vote(-1)}
                       disabled={!selectedDialect || voting}
-                      className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white font-semibold py-2 rounded-lg transition"
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold py-2 rounded-lg transition"
                     >
-                      {t('evaluate.confirmIncorrect')}
+                      {t('evaluate.recordDialect')}
                     </button>
                     <button
                       onClick={() => { setDialectPicker(false); setSelectedDialect(''); }}
