@@ -216,7 +216,7 @@ export function ClipDetailPage() {
               <div key={tx.id} className="bg-white rounded-xl border border-gray-200 p-4">
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${originBadge(tx.origin)}`}>
-                    {tx.origin}
+                    {translateValue(t, 'origin', tx.origin)}
                   </span>
                   <span className="text-xs text-gray-400 ml-auto">
                     {new Date(tx.createdAt).toLocaleDateString()}

@@ -20,6 +20,10 @@ function addSkipped(clipId: string) {
   }
 }
 
+function isDimension(value: string | null): value is Dimension {
+  return !!value && (DIMENSIONS as readonly string[]).includes(value);
+}
+
 interface EvalState {
   clip: Clip;
   uniqueTranscriptions: UniqueTranscription[];
@@ -36,8 +40,12 @@ export function EvaluatePage({ username }: Props) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const currentClipId = searchParams.get('clipId');
+  // Dimension is sourced from the URL, not its own state — that's what lets switching
+  // tabs stay a pure UI change (no clip refetch) while still being a shareable/
+  // bookmarkable/back-button-safe part of the page's address.
+  const dimensionParam = searchParams.get('dimension');
+  const dimension: Dimension = isDimension(dimensionParam) ? dimensionParam : 'transcription';
 
-  const [dimension, setDimension] = useState<Dimension>('transcription');
   const [state, setState] = useState<EvalState | null>(null);
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -101,7 +109,7 @@ export function EvaluatePage({ username }: Props) {
       } else {
         applyData(data);
         selfNavRef.current = true;
-        setSearchParams({ clipId: data.clip.clipId });
+        setSearchParams({ clipId: data.clip.clipId, dimension });
       }
     } catch (e) {
       setError(String(e));
@@ -137,13 +145,16 @@ export function EvaluatePage({ username }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentClipId]);
 
-  // When dimension changes, load a fresh next clip
-  const mountedRef = useRef(false);
-  useEffect(() => {
-    if (!mountedRef.current) { mountedRef.current = true; return; }
-    loadNext();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dimension]);
+  // Switching dimension tabs is a pure UI change: the current clip's votes/userVotes
+  // already cover every dimension, so there's no need to fetch a different clip —
+  // just update the URL (replace, so it doesn't clutter clip-to-clip browser history)
+  // and clear any dimension-specific transient UI (edit mode, dialect picker, etc.).
+  const switchDimension = (d: Dimension) => {
+    resetUi();
+    const next = new URLSearchParams(searchParams);
+    next.set('dimension', d);
+    setSearchParams(next, { replace: true });
+  };
 
   const skip = () => {
     if (state) {
@@ -333,7 +344,7 @@ export function EvaluatePage({ username }: Props) {
         {DIMENSIONS.map((d) => (
           <button
             key={d}
-            onClick={() => setDimension(d)}
+            onClick={() => switchDimension(d)}
             className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
               dimension === d
                 ? 'bg-brand-600 text-white'
@@ -687,7 +698,7 @@ export function EvaluatePage({ username }: Props) {
             <p className="text-center text-sm text-gray-400">
               {t('evaluate.alreadyVoted', {
                 emoji: userVoteForDimension.value === 1 ? '👍' : '👎',
-                dimension,
+                dimension: t(`dimension.${dimension}`),
               })}
             </p>
           )}

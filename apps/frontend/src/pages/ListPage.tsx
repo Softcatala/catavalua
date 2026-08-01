@@ -85,7 +85,7 @@ export function ListPage() {
                   </p>
                   {bestTranscription && (
                     <span className="text-xs text-gray-400 mt-1 inline-block">
-                      {t('list.via', { origin: bestTranscription.origin })}
+                      {t('list.via', { origin: translateValue(t, 'origin', bestTranscription.origin) })}
                     </span>
                   )}
                 </div>

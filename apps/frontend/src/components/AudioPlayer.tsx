@@ -1,4 +1,5 @@
 import { useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   src: string;
@@ -6,6 +7,7 @@ interface Props {
 }
 
 export function AudioPlayer({ src, autoPlay }: Props) {
+  const { t } = useTranslation();
   const ref = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
@@ -23,7 +25,7 @@ export function AudioPlayer({ src, autoPlay }: Props) {
       src={src}
       preload="metadata"
     >
-      Your browser does not support the audio element.
+      {t('audioPlayer.fallback')}
     </audio>
   );
 }

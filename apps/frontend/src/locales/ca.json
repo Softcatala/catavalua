@@ -1,4 +1,7 @@
 {
+  "audioPlayer": {
+    "fallback": "El teu navegador no admet l'element d'àudio."
+  },
   "header": {
     "by": "un projecte de Softcatalà"
   },
