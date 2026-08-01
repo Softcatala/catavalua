@@ -279,7 +279,10 @@ export function EvaluatePage({ username }: Props) {
     : (state?.votes.filter((v) => v.dimension === dimension).reduce((max, v) => Math.max(max, v.netVotes), 0) ?? 0);
 
   const bestTx = state?.uniqueTranscriptions[0];
-  const activeText = editMode ? editText : (bestTx?.text ?? state?.clip.candidate1 ?? state?.clip.candidate2 ?? '');
+  // Stable pre-edit baseline — unlike activeText, this never shifts to editText,
+  // so comparing against it while editing actually detects a change.
+  const originalText = bestTx?.text ?? state?.clip.candidate1 ?? state?.clip.candidate2 ?? '';
+  const activeText = editMode ? editText : originalText;
 
   const copyClipUrl = (clipId: string) => {
     navigator.clipboard.writeText(`${window.location.origin}/clip/${clipId}`);
@@ -413,15 +416,20 @@ export function EvaluatePage({ username }: Props) {
               return (
                 <div className="bg-white rounded-2xl border border-brand-200 p-5">
                   <textarea
+                    ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; } }}
                     value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
+                    onChange={(e) => {
+                      setEditText(e.target.value);
+                      e.target.style.height = 'auto';
+                      e.target.style.height = `${e.target.scrollHeight}px`;
+                    }}
                     rows={3}
-                    className="w-full border border-brand-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-300 resize-none"
+                    className="w-full border border-brand-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-300 resize-none overflow-hidden"
                     autoFocus
                   />
                   <div className="flex items-center gap-2 mt-2">
                     <span className="text-xs text-gray-400 flex-1">
-                      {editText.trim() !== (bestTx?.text ?? activeText)
+                      {editText.trim() !== originalText
                         ? t('evaluate.willSave')
                         : t('evaluate.noChanges')}
                     </span>
@@ -442,7 +450,7 @@ export function EvaluatePage({ username }: Props) {
                   <div className="flex items-center gap-2 mb-3 flex-wrap">
                     {bestTx?.origins.map((o) => (
                       <span key={o} className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">
-                        {o}
+                        {translateValue(t, 'origin', o)}
                       </span>
                     ))}
                     {bestTx?.hasAgreement && (
@@ -458,7 +466,7 @@ export function EvaluatePage({ username }: Props) {
                           ? 'bg-red-100 text-red-600'
                           : 'bg-gray-100 text-gray-500'
                       }`}>
-                        {tVotes.netVotes > 0 ? '+' : ''}{tVotes.netVotes} votes
+                        {t('evaluate.votesCount', { net: tVotes.netVotes > 0 ? `+${tVotes.netVotes}` : tVotes.netVotes })}
                       </span>
                     )}
                   </div>
@@ -466,7 +474,7 @@ export function EvaluatePage({ username }: Props) {
                 <div className="flex items-start gap-3">
                   <p className="text-sm text-gray-800 leading-relaxed flex-1">{activeText}</p>
                   <button
-                    onClick={() => { setEditMode(true); setEditText(activeText); }}
+                    onClick={() => { setEditMode(true); setEditText(originalText); }}
                     className="flex-shrink-0 text-xs text-brand-500 hover:text-brand-700 hover:underline mt-0.5"
                   >
                     {t('evaluate.edit')}

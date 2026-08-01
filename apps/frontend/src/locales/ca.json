@@ -71,6 +71,7 @@
     "dialectInstruction": "El Gemini ha detectat aquesta variant dialectal del català. Escolteu i voteu si és correcta.",
     "noDialect": "Encara no hi ha cap dialecte suggerit per a aquest clip — escolta'l i tria el que sentis a sota.",
     "netVotes": "Vots nets: {{count}}",
+    "votesCount": "{{net}} vots",
     "goldenSuffix": " ✓ daurat",
     "willSave": "Es desarà com a correcció humana",
     "noChanges": "Cap canvi",
@@ -144,6 +145,11 @@
       "spanish": "Castellà",
       "other": "Altra",
       "unknown": "Desconegut"
+    },
+    "origin": {
+      "human": "Humana",
+      "candidate_1": "Candidat 1",
+      "candidate_2": "Candidat 2"
     }
   }
 }

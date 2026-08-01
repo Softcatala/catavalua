@@ -71,6 +71,7 @@
     "dialectInstruction": "Gemini detected this Catalan dialect variant. Listen and vote whether it is correct.",
     "noDialect": "No dialect suggested yet for this clip — listen and choose the one you hear below.",
     "netVotes": "Net votes: {{count}}",
+    "votesCount": "{{net}} votes",
     "goldenSuffix": " ✓ golden",
     "willSave": "Will save as a human correction",
     "noChanges": "No changes",
@@ -144,6 +145,11 @@
       "spanish": "Spanish",
       "other": "Other",
       "unknown": "Unknown"
+    },
+    "origin": {
+      "human": "Human",
+      "candidate_1": "Candidate 1",
+      "candidate_2": "Candidate 2"
     }
   }
 }

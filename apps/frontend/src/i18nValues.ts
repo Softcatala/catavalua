@@ -6,7 +6,7 @@ type Translator = (key: string, options: { defaultValue: string }) => string;
 
 export function translateValue(
   t: Translator,
-  category: 'gender' | 'dialect' | 'language',
+  category: 'gender' | 'dialect' | 'language' | 'origin',
   value: string | null | undefined,
 ): string {
   if (!value) return '';
