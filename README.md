@@ -1,4 +1,4 @@
-# CatVoice
+# GarbellaVeus
 
 Human evaluation platform for the [softcatala/catalan-youtube-speech](https://huggingface.co/datasets/softcatala/catalan-youtube-speech) dataset. Reviewers vote on ASR transcription quality, speaker gender, and dialect for short Catalan speech clips pulled from YouTube.
 
