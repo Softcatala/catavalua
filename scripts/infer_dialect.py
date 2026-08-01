@@ -376,16 +376,26 @@ def http_post_json(url, payload, timeout=15, retries=3):
             raise e
 
 
-def http_get_json(url, timeout=15) -> dict | None:
-    try:
-        with urllib.request.urlopen(url, timeout=timeout) as resp:
-            return json.loads(resp.read())
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            return None
-        raise
-    except Exception:
-        return None
+def http_get_json(url, timeout=15, retries=3) -> dict | None:
+    delay = 5
+    for attempt in range(1, retries + 1):
+        try:
+            with urllib.request.urlopen(url, timeout=timeout) as resp:
+                return json.loads(resp.read())
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                return None
+            if attempt < retries:
+                time.sleep(delay)
+                delay = min(delay * 2, 60)
+                continue
+            raise
+        except Exception:
+            if attempt < retries:
+                time.sleep(delay)
+                delay = min(delay * 2, 60)
+                continue
+            raise
 
 
 VOTE_USERNAME = "derivat-de-poblacio"
@@ -400,9 +410,9 @@ def clip_exists(api_url: str, clip_id: str) -> bool:
 
 def _vote_one(api_url: str, clip_id: str, dialecte: str) -> str:
     """Returns 'voted', 'skipped_missing', or 'error:<msg>'."""
-    if not clip_exists(api_url, clip_id):
-        return "skipped_missing"
     try:
+        if not clip_exists(api_url, clip_id):
+            return "skipped_missing"
         http_post_json(
             f"{api_url}/votes",
             {
