@@ -71,7 +71,7 @@
     "genderAnnotation": "Anotació de gènere",
     "genderInstruction": "Escolteu el clip i voteu si aquesta anotació de gènere és correcta.",
     "dialectDetection": "Detecció de dialecte",
-    "dialectInstruction": "El Gemini ha detectat aquesta variant dialectal del català. Escolteu i voteu si és correcta.",
+    "dialectInstruction": "Escolteu el clip i voteu si aquesta variant dialectal és correcta.",
     "noDialect": "Encara no hi ha cap dialecte suggerit per a aquest clip — escolta'l i tria el que sentis a sota.",
     "netVotes": "Vots nets: {{count}}",
     "votesCount": "{{net}} vots",

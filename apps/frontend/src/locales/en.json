@@ -71,7 +71,7 @@
     "genderAnnotation": "Gender annotation",
     "genderInstruction": "Listen to the clip and vote whether this gender annotation is correct.",
     "dialectDetection": "Dialect detection",
-    "dialectInstruction": "Gemini detected this Catalan dialect variant. Listen and vote whether it is correct.",
+    "dialectInstruction": "Listen to the clip and vote whether this dialect variant is correct.",
     "noDialect": "No dialect suggested yet for this clip — listen and choose the one you hear below.",
     "netVotes": "Net votes: {{count}}",
     "votesCount": "{{net}} votes",
