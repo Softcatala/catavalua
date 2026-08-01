@@ -8,7 +8,9 @@ Workflow:
     Saves clip_id -> {tar_file, tar_offset, tar_size} to data/tar_index.json.
 
   Step 2 — Transcribe (default mode):
-    Iterates all dataset rows from HuggingFace API.
+    Iterates all dataset rows from the local clips.tsv cache (downloaded
+    once from the HF repo — the datasets-server /rows API is broken for
+    this dataset, see iter_dataset()).
     For each unprocessed clip:
       - Fetches audio from the tar archive (HTTP range, no full download)
       - Runs `gemini` CLI with audio file + candidate transcriptions
@@ -25,6 +27,7 @@ Usage:
 """
 
 import argparse
+import csv
 import json
 import logging
 import math
@@ -54,14 +57,12 @@ log = logging.getLogger("catvoice")
 # ---------------------------------------------------------------------------
 
 HF_BASE = "https://huggingface.co/datasets/softcatala/catalan-youtube-speech/resolve/main"
-HF_API = (
-    "https://datasets-server.huggingface.co/rows"
-    "?dataset=softcatala%2Fcatalan-youtube-speech&config=default&split=train"
-)
+CLIPS_TSV_URL = f"{HF_BASE}/clips.tsv"
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 INDEX_FILE = DATA_DIR / "tar_index.json"
 TEMP_DIR = DATA_DIR / "tmp"
+CLIPS_TSV_FILE = DATA_DIR / "clips.tsv"
 
 TAR_HEADER_SIZE = 512
 TAR_COUNT = 51  # audio-0.tar … audio-50.tar
@@ -242,34 +243,37 @@ def save_index(index: dict[str, dict]) -> None:
 # Dataset iterator
 # ---------------------------------------------------------------------------
 
-def iter_dataset(offset: int = 0, page_size: int = 100):
-    while True:
-        url = f"{HF_API}&offset={offset}&length={page_size}"
-        delay = 5
-        while True:  # retry loop for this page
-            try:
-                data = http_get_json(url)
-                break  # success — move on
-            except urllib.error.HTTPError as e:
-                if e.code in (429, 500, 502, 503, 504):
-                    log.warning("Dataset API transient error at offset %d (%s) — retrying in %ds…", offset, e, delay)
-                    time.sleep(delay)
-                    delay = min(delay * 2, 300)
-                    continue
-                log.error("Dataset API permanent error at offset %d: %s — stopping.", offset, e)
-                return
-            except Exception as e:
-                log.warning("Dataset API error at offset %d: %s — retrying in %ds…", offset, e, delay)
-                time.sleep(delay)
-                delay = min(delay * 2, 300)
-        rows = data.get("rows", [])
-        if not rows:
-            return
-        for row in rows:
-            yield row["row"]
-        offset += len(rows)
-        if len(rows) < page_size:
-            return
+def ensure_clips_tsv() -> Path:
+    """Download clips.tsv once and cache it in DATA_DIR.
+
+    HF's datasets-server /rows API returns "Protocol not known: memory" for
+    this dataset (is-valid shows everything false), so clip discovery reads
+    the dataset repo's raw clips.tsv directly instead of going through it.
+    """
+    if CLIPS_TSV_FILE.exists():
+        return CLIPS_TSV_FILE
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    log.info("Downloading clips.tsv (one-time, ~140MB)…")
+    tmp = CLIPS_TSV_FILE.with_suffix(".tsv.part")
+    urllib.request.urlretrieve(CLIPS_TSV_URL, tmp)
+    tmp.rename(CLIPS_TSV_FILE)
+    log.info("Saved clips.tsv to %s", CLIPS_TSV_FILE)
+    return CLIPS_TSV_FILE
+
+
+def iter_dataset(offset: int = 0):
+    """Yield dataset rows (clip_id, source_id, duration, start, end, gender,
+    candidate_1, candidate_2, yt_url, license) from the local clips.tsv cache."""
+    path = ensure_clips_tsv()
+    with path.open(newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        for i, row in enumerate(reader):
+            if i < offset:
+                continue
+            for key in ("duration", "start", "end"):
+                value = row.get(key)
+                row[key] = float(value) if value not in (None, "") else None
+            yield row
 
 
 # ---------------------------------------------------------------------------
