@@ -5,32 +5,6 @@ import { api } from '../api';
 import type { ClipWithBest } from '../types';
 import { translateValue } from '../i18nValues';
 
-interface DimStat { dimension: string; evaluated: number; golden: number; evaluatedHours: number; goldenHours: number }
-interface Stats { dimensions: DimStat[]; flaggedIrrelevant: number; totalHours: number }
-
-function HoursProgressBar({ evaluatedHours, goldenHours, totalHours }: { evaluatedHours: number; goldenHours: number; totalHours: number }) {
-  const { t } = useTranslation();
-  const goldenPct = totalHours > 0 ? Math.min(100, (goldenHours / totalHours) * 100) : 0;
-  const evaluatedPct = totalHours > 0 ? Math.min(100 - goldenPct, ((evaluatedHours - goldenHours) / totalHours) * 100) : 0;
-
-  return (
-    <div className="mt-3">
-      <div className="text-xs text-gray-400 mb-1">{t('list.hoursProgress')}</div>
-      <div className="h-2 rounded-full bg-gray-100 overflow-hidden flex">
-        <div className="h-full bg-green-600" style={{ width: `${goldenPct}%` }} />
-        <div className="h-full bg-green-300" style={{ width: `${evaluatedPct}%` }} />
-      </div>
-      <div className="text-xs text-gray-400 mt-1">
-        {t('list.hoursSummary', {
-          golden: goldenHours.toFixed(1),
-          evaluated: evaluatedHours.toFixed(1),
-          total: totalHours.toFixed(1),
-        })}
-      </div>
-    </div>
-  );
-}
-
 export function ListPage() {
   const { t, i18n } = useTranslation();
   const [search, setSearch] = useState('');
@@ -39,11 +13,6 @@ export function ListPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [stats, setStats] = useState<Stats | null>(null);
-
-  useEffect(() => {
-    api.getVoteStats().then(setStats).catch(() => {});
-  }, []);
 
   const LIMIT = 20;
 
@@ -67,40 +36,13 @@ export function ListPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">
-          {t('list.title')} <span className="text-gray-400 font-normal text-base">— {t('list.clips', { count: total.toLocaleString(i18n.resolvedLanguage) })}</span>
-        </h1>
-        <Link
-          to="/evaluate"
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition"
-        >
-          {t('list.evaluate')}
-        </Link>
+      <div className="mb-4">
+        <Link to="/" className="text-brand-600 hover:underline text-sm">{t('list.back')}</Link>
       </div>
 
-      {stats && stats.dimensions.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-          {stats.dimensions.map(({ dimension, evaluated, golden, evaluatedHours, goldenHours }) => (
-            <div key={dimension} className="bg-white border border-gray-200 rounded-xl p-4">
-              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-                {t(`dimension.${dimension}`, { defaultValue: dimension })}
-              </div>
-              <div className="flex items-end gap-3">
-                <div>
-                  <div className="text-2xl font-bold text-gray-800">{evaluated.toLocaleString()}</div>
-                  <div className="text-xs text-gray-400">{t('list.evaluated')}</div>
-                </div>
-                <div className="mb-0.5">
-                  <div className="text-lg font-semibold text-green-600">{golden.toLocaleString()}</div>
-                  <div className="text-xs text-gray-400">{t('list.golden')}</div>
-                </div>
-              </div>
-              <HoursProgressBar evaluatedHours={evaluatedHours} goldenHours={goldenHours} totalHours={stats.totalHours} />
-            </div>
-          ))}
-        </div>
-      )}
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">
+        {t('list.title')} <span className="text-gray-400 font-normal text-base">— {t('list.clips', { count: total.toLocaleString(i18n.resolvedLanguage) })}</span>
+      </h1>
 
       <div className="relative mb-4">
         <input
@@ -108,7 +50,7 @@ export function ListPage() {
           placeholder={t('list.searchPlaceholder')}
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          className="w-full border border-gray-300 rounded-lg px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-700"
+          className="w-full border border-gray-300 rounded-lg px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-brand-400 text-gray-700"
         />
         <span className="absolute left-3 top-2.5 text-gray-400">🔍</span>
       </div>
@@ -123,7 +65,7 @@ export function ListPage() {
             <Link
               key={clip.clipId}
               to={`/clip/${clip.clipId}`}
-              className="block bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-sm transition p-4"
+              className="block bg-white rounded-xl border border-gray-200 hover:border-brand-300 hover:shadow-sm transition p-4"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">

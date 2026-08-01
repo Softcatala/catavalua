@@ -11,7 +11,7 @@ function originBadge(origin: string) {
   const colours: Record<string, string> = {
     gemini: 'bg-purple-100 text-purple-700',
     claude: 'bg-amber-100 text-amber-700',
-    human: 'bg-blue-100 text-blue-700',
+    human: 'bg-brand-100 text-brand-700',
     candidate_1: 'bg-gray-100 text-gray-600',
     candidate_2: 'bg-gray-100 text-gray-600',
   };
@@ -61,7 +61,7 @@ export function ClipDetailPage() {
     return (
       <div className="max-w-2xl mx-auto px-4 py-12">
         <div className="text-red-500 bg-red-50 rounded-lg p-4 mb-4">{error}</div>
-        <Link to="/" className="text-blue-600 hover:underline text-sm">{t('detail.backToList')}</Link>
+        <Link to="/list" className="text-brand-600 hover:underline text-sm">{t('detail.backToList')}</Link>
       </div>
     );
   }
@@ -100,10 +100,10 @@ export function ClipDetailPage() {
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <Link to="/" className="text-blue-600 hover:underline text-sm">{t('detail.backToList')}</Link>
+        <Link to="/list" className="text-brand-600 hover:underline text-sm">{t('detail.backToList')}</Link>
         <Link
           to="/evaluate"
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition"
+          className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition"
         >
           {t('detail.evaluate')}
         </Link>

@@ -263,7 +263,7 @@ export function EvaluatePage({ username }: Props) {
         <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('evaluate.allDone')}</h2>
         <p className="text-gray-500 mb-6">{t('evaluate.allDoneDescription')}</p>
         <button onClick={() => loadNext()} className="btn-primary mr-3">{t('evaluate.startOver')}</button>
-        <Link to="/" className="btn-secondary">{t('evaluate.backToList')}</Link>
+        <Link to="/list" className="btn-secondary">{t('evaluate.backToList')}</Link>
       </div>
     );
   }
@@ -272,7 +272,7 @@ export function EvaluatePage({ username }: Props) {
     <div className="max-w-2xl mx-auto px-4 py-6">
       {/* Header */}
       <div className="flex items-center gap-2 mb-6">
-        <Link to="/" className="text-blue-600 hover:underline text-sm">{t('evaluate.list')}</Link>
+        <Link to="/" className="text-brand-600 hover:underline text-sm">{t('evaluate.back')}</Link>
         <span className="text-gray-300">|</span>
         <button
           onClick={() => navigate(-1)}
@@ -296,7 +296,7 @@ export function EvaluatePage({ username }: Props) {
             onClick={() => setDimension(d)}
             className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
               dimension === d
-                ? 'bg-blue-600 text-white'
+                ? 'bg-brand-600 text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
@@ -312,7 +312,7 @@ export function EvaluatePage({ username }: Props) {
             <div className="flex items-center gap-3 mb-4 flex-wrap">
               <button
                 onClick={() => copyClipUrl(state.clip.clipId)}
-                className="text-xs font-mono text-gray-400 hover:text-blue-500 transition"
+                className="text-xs font-mono text-gray-400 hover:text-brand-500 transition"
                 title={t('evaluate.copyLink')}
               >
                 {copied ? t('evaluate.copied') : state.clip.clipId}
@@ -374,12 +374,12 @@ export function EvaluatePage({ username }: Props) {
 
             if (editMode) {
               return (
-                <div className="bg-white rounded-2xl border border-blue-200 p-5">
+                <div className="bg-white rounded-2xl border border-brand-200 p-5">
                   <textarea
                     value={editText}
                     onChange={(e) => setEditText(e.target.value)}
                     rows={3}
-                    className="w-full border border-blue-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none"
+                    className="w-full border border-brand-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-300 resize-none"
                     autoFocus
                   />
                   <div className="flex items-center gap-2 mt-2">
@@ -430,7 +430,7 @@ export function EvaluatePage({ username }: Props) {
                   <p className="text-sm text-gray-800 leading-relaxed flex-1">{activeText}</p>
                   <button
                     onClick={() => { setEditMode(true); setEditText(activeText); }}
-                    className="flex-shrink-0 text-xs text-blue-500 hover:text-blue-700 hover:underline mt-0.5"
+                    className="flex-shrink-0 text-xs text-brand-500 hover:text-brand-700 hover:underline mt-0.5"
                   >
                     {t('evaluate.edit')}
                   </button>
@@ -490,7 +490,7 @@ export function EvaluatePage({ username }: Props) {
                   <select
                     value={selectedDialect}
                     onChange={(e) => setSelectedDialect(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-300"
                     autoFocus
                   >
                     <option value="">{t('evaluate.dialectPickerPlaceholder')}</option>
@@ -502,7 +502,7 @@ export function EvaluatePage({ username }: Props) {
                     <button
                       onClick={() => vote(-1)}
                       disabled={!selectedDialect || voting}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold py-2 rounded-lg transition"
+                      className="flex-1 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white font-semibold py-2 rounded-lg transition"
                     >
                       {t('evaluate.recordDialect')}
                     </button>
@@ -525,7 +525,7 @@ export function EvaluatePage({ username }: Props) {
                   <select
                     value={selectedDialect}
                     onChange={(e) => setSelectedDialect(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-300"
                     autoFocus
                   >
                     <option value="">{t('evaluate.dialectPickerPlaceholder')}</option>
@@ -537,7 +537,7 @@ export function EvaluatePage({ username }: Props) {
                     <button
                       onClick={suggestDialect}
                       disabled={!selectedDialect || voting}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold py-2 rounded-lg transition"
+                      className="flex-1 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white font-semibold py-2 rounded-lg transition"
                     >
                       {t('evaluate.suggestDialect')}
                     </button>

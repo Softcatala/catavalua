@@ -1,6 +1,22 @@
 {
-  "list": {
+  "header": {
+    "by": "a Softcatalà project"
+  },
+  "home": {
     "title": "CatAvalua",
+    "p1Pre": "Want to help us improve Catalan speech technology? Evaluate voice clips from the ",
+    "p1Link": "Catalan YouTube Speech",
+    "p1Post": " dataset, extracted from plenary session videos (CC-BY). This will let us add up to 920 hours of validated Catalan speech to the open datasets.",
+    "p2": "It's simple: listen to the clips and vote on whether the transcription, gender, and dialect are correct. If you spot errors, you can also contribute by suggesting a more accurate transcription or identifying the correct dialect.",
+    "p3Pre": "We've also included the ",
+    "p3Link": "transcriptions automatically verified by the BSC",
+    "p3Post": ", to now add a layer of human validation on top.",
+    "ctaEvaluate": "Evaluate",
+    "ctaExplore": "Explore"
+  },
+  "list": {
+    "title": "Explore",
+    "back": "← Back",
     "clips": "{{count}} clips",
     "evaluate": "Evaluate →",
     "searchPlaceholder": "Search transcriptions or clip ID…",
@@ -41,7 +57,7 @@
     "goldenBadge": "✓ golden"
   },
   "evaluate": {
-    "list": "← List",
+    "back": "← Back",
     "prevClip": "Previous clip",
     "nextClip": "Next clip",
     "loading": "Loading…",
@@ -86,13 +102,14 @@
   "about": {
     "title": "About this project",
     "datasetTitle": "The dataset",
-    "datasetText": "This platform hosts human evaluation for the Catalan YouTube Speech Corpus: 231,700 short clips of spontaneous Catalan speech, automatically extracted from public YouTube videos by Softcatalà, the volunteer organization behind free and open-source Catalan-language software. Each clip comes with two independent, machine-generated transcription candidates, along with automatically detected speaker gender and clip timing.",
+    "datasetText": "This platform hosts human evaluation of the Catalan YouTube Speech Corpus: 231,684 short clips of spontaneous Catalan speech, automatically extracted from public YouTube videos by Softcatalà, with audio under a CC-BY license and transcripts and metadata under MIT. Each clip includes an automatic transcription (some already filtered to higher confidence by the Barcelona Supercomputing Center), the speaker's gender and, for some clips, a detected dialect; corrections and votes from the community are collected here.",
     "whyTitle": "Why it needs evaluation",
-    "whyText": "The transcripts were produced automatically, not reviewed by a person, so the dataset is raw and unvalidated — useful for large-scale training, but not a reliable benchmark on its own. Where the two automatic candidates agree, the text is usually trustworthy; where they diverge, the clip is often noisy, overlapping speech, or otherwise hard to transcribe.",
+    "whyText": "The transcripts were produced automatically, not reviewed by a person, so the dataset is raw and unvalidated, useful for large-scale training, but not a reliable benchmark on its own. Where the two automatic candidates agree, the text is usually trustworthy; where they diverge, the clip is often noisy, overlapping speech, or otherwise hard to transcribe.",
     "goalTitle": "What we're doing here",
-    "goalText": "Every vote you cast — on a transcription, a speaker gender, or a detected dialect — helps build a human-validated layer on top of this raw automatic data: surfacing which transcriptions can be trusted, catching what the models got wrong, and producing higher-confidence data that can be used to improve Catalan speech recognition.",
+    "goalText": "Every vote you cast, on a transcription, a speaker gender, or a detected dialect, helps build a human-validated layer on top of this raw automatic data: surfacing which transcriptions can be trusted, catching what the models got wrong, and producing higher-confidence data that can be used to improve Catalan speech recognition.",
     "linksTitle": "Learn more",
     "linkDataset": "Catalan YouTube Speech Corpus on Hugging Face",
+    "linkBSC": "Distilled Catalan YouTube Speech (BSC) on Hugging Face",
     "linkSoftcatala": "Softcatalà"
   },
   "dimension": {

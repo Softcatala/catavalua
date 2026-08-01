@@ -1,6 +1,22 @@
 {
-  "list": {
+  "header": {
+    "by": "un projecte de Softcatalà"
+  },
+  "home": {
     "title": "CatAvalua",
+    "p1Pre": "Vols ajudar-nos a millorar la tecnologia de veu en català? Avalua els talls de veu del ",
+    "p1Link": "Catalan YouTube Speech",
+    "p1Post": ", un conjunt de dades extret de vídeos de plenaris (CC-BY). Això ens permetrà afegir fins a 920 hores de parla catalana validada als conjunts oberts.",
+    "p2": "És molt fàcil: escolta els talls i vota si la transcripció, el gènere i el dialecte són correctes. Si hi detectes errors, també pots contribuir-hi proposant una transcripció més acurada o identificant-ne el dialecte correcte.",
+    "p3Pre": "També hem inclòs les ",
+    "p3Link": "transcripcions verificades de manera automàtica pel BSC",
+    "p3Post": " per tal d'afegir-hi ara una capa de validació humana.",
+    "ctaEvaluate": "Avalua",
+    "ctaExplore": "Explora"
+  },
+  "list": {
+    "title": "Explora",
+    "back": "← Enrere",
     "clips": "{{count}} clips",
     "evaluate": "Avaluar →",
     "searchPlaceholder": "Cercar transcripcions o ID de clip…",
@@ -41,7 +57,7 @@
     "goldenBadge": "✓ daurat"
   },
   "evaluate": {
-    "list": "← Llista",
+    "back": "← Enrere",
     "prevClip": "Clip anterior",
     "nextClip": "Clip següent",
     "loading": "Carregant…",
@@ -86,13 +102,14 @@
   "about": {
     "title": "Sobre aquest projecte",
     "datasetTitle": "El conjunt de dades",
-    "datasetText": "Aquesta plataforma allotja l'avaluació humana del Catalan YouTube Speech Corpus: 231.700 clips curts de parla catalana espontània, extrets automàticament de vídeos públics de YouTube per Softcatalà, l'organització de voluntaris darrere del programari lliure i de codi obert en català. Cada clip inclou dues transcripcions candidates generades automàticament i de manera independent, juntament amb el gènere de la persona que parla i la durada del clip, detectats automàticament.",
+    "datasetText": "Aquesta plataforma allotja l'avaluació humana del Catalan YouTube Speech Corpus: 231.684 clips curts de parla catalana espontània, extrets automàticament de vídeos públics de YouTube per Softcatalà, amb l'àudio sota llicència CC-BY i les transcripcions i metadades sota llicència MIT. Cada clip inclou una transcripció automàtica (algunes, ja filtrades amb més confiança pel Barcelona Supercomputing Center), el gènere de qui parla i, en alguns clips, el dialecte detectat; aquí es recullen les correccions i els vots que hi aporta la comunitat.",
     "whyTitle": "Per què cal avaluar-lo",
     "whyText": "Les transcripcions es van generar automàticament, sense revisió humana, de manera que el conjunt de dades és brut i no validat: útil per a l'entrenament a gran escala, però encara no un referent fiable per si sol. Quan les dues transcripcions automàtiques coincideixen, el text sol ser fiable; quan divergeixen, sovint es tracta d'un clip sorollós, amb parla superposada o difícil de transcriure per algun altre motiu.",
     "goalTitle": "Què fem aquí",
-    "goalText": "Cada vot que emeteu —sobre una transcripció, el gènere de la persona que parla o el dialecte detectat— ajuda a construir una capa validada per humans sobre aquestes dades automàtiques brutes: identificant quines transcripcions són fiables, detectant els errors dels models i generant dades de més confiança que es poden fer servir per millorar el reconeixement de la parla en català.",
+    "goalText": "Cada vot que emeteu, sobre una transcripció, el gènere de la persona que parla o el dialecte detectat, ajuda a construir una capa validada per humans sobre aquestes dades automàtiques brutes: identificant quines transcripcions són fiables, detectant els errors dels models i generant dades de més confiança que es poden fer servir per millorar el reconeixement de la parla en català.",
     "linksTitle": "Més informació",
     "linkDataset": "Catalan YouTube Speech Corpus a Hugging Face",
+    "linkBSC": "Distilled Catalan YouTube Speech (BSC) a Hugging Face",
     "linkSoftcatala": "Softcatalà"
   },
   "dimension": {

@@ -20,7 +20,7 @@ export function Footer() {
           onClick={() => i18n.changeLanguage(code)}
           className={`mx-1 px-2 py-0.5 rounded transition ${
             i18n.resolvedLanguage === code
-              ? 'text-blue-600 font-semibold'
+              ? 'text-brand-600 font-semibold'
               : 'hover:text-gray-600'
           }`}
         >
