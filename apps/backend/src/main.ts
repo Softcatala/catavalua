@@ -1,9 +1,10 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { OtelLogger } from './observability/otel-logger.service';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { logger: new OtelLogger() });
 
   const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',');
   app.enableCors({

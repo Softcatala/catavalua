@@ -5,6 +5,7 @@ import { Clip } from '../domain/clip.entity';
 import { Transcription } from '../domain/transcription.entity';
 import { Vote } from '../domain/vote.entity';
 import { IssueReport } from '../domain/issue-report.entity';
+import { MetricsService } from '../observability/metrics.service';
 
 export interface ClipWithBest {
   clip: Clip;
@@ -19,6 +20,7 @@ export class ClipService {
     @InjectRepository(Transcription) private readonly transcriptions: Repository<Transcription>,
     @InjectRepository(Vote) private readonly votes: Repository<Vote>,
     @InjectRepository(IssueReport) private readonly issueReports: Repository<IssueReport>,
+    private readonly metrics: MetricsService,
   ) {}
 
   async list(search: string, page: number, limit: number): Promise<{ items: ClipWithBest[]; total: number }> {
@@ -156,6 +158,7 @@ export class ClipService {
   }
 
   async flagIrrelevant(clipId: string, username: string): Promise<void> {
+    this.metrics.clipsFlaggedIrrelevantTotal.inc();
     // Record a "not_relevant" vote so we can track who flagged it
     await this.votes.save(
       this.votes.create({

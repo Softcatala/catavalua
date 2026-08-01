@@ -5,6 +5,7 @@ import { VoteService } from './vote.service';
 import { Vote } from '../domain/vote.entity';
 import { Clip } from '../domain/clip.entity';
 import { Transcription } from '../domain/transcription.entity';
+import { MetricsService } from '../observability/metrics.service';
 
 describe('VoteService', () => {
   let service: VoteService;
@@ -25,7 +26,7 @@ describe('VoteService', () => {
         }),
         TypeOrmModule.forFeature([Vote, Clip]),
       ],
-      providers: [VoteService],
+      providers: [VoteService, MetricsService],
     }).compile();
 
     service = module.get(VoteService);

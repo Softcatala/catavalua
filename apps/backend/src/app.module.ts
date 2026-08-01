@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { getDatabaseConfig } from './config/database.config';
@@ -17,6 +17,9 @@ import { VoteController } from './inbound/vote.controller';
 import { EvaluateController } from './inbound/evaluate.controller';
 import { AudioController } from './inbound/audio.controller';
 import { IssueReportController } from './inbound/issue-report.controller';
+import { MetricsController } from './observability/metrics.controller';
+import { MetricsService } from './observability/metrics.service';
+import { HttpMetricsMiddleware } from './observability/http-metrics.middleware';
 
 @Module({
   imports: [
@@ -31,7 +34,19 @@ import { IssueReportController } from './inbound/issue-report.controller';
     EvaluateController,
     AudioController,
     IssueReportController,
+    MetricsController,
   ],
-  providers: [ClipService, TranscriptionService, VoteService, IssueReportService, AudioProxyService],
+  providers: [
+    ClipService,
+    TranscriptionService,
+    VoteService,
+    IssueReportService,
+    AudioProxyService,
+    MetricsService,
+  ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(HttpMetricsMiddleware).forRoutes('*');
+  }
+}

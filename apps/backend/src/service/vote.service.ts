@@ -1,8 +1,9 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { Vote } from '../domain/vote.entity';
 import { Clip } from '../domain/clip.entity';
+import { MetricsService } from '../observability/metrics.service';
 
 export interface VoteSummary {
   dimension: string;
@@ -19,12 +20,40 @@ export interface VoteSummary {
 // progress reflects actual human review, not bulk-imported suggestions.
 const SYSTEM_VOTE_USERNAMES = ['derivat-de-poblacio'];
 
+// Mirrors the "golden" threshold used by summaryForClip/isGolden below.
+const GOLDEN_THRESHOLD = 2;
+
 @Injectable()
-export class VoteService {
+export class VoteService implements OnModuleInit {
   constructor(
     @InjectRepository(Vote) private readonly repo: Repository<Vote>,
     @InjectRepository(Clip) private readonly clips: Repository<Clip>,
+    private readonly metrics: MetricsService,
   ) {}
+
+  // Prime the catvoice_clips_golden_total gauge from existing data on boot —
+  // otherwise it reads 0 after every restart until enough new votes are cast
+  // to cross the threshold again.
+  async onModuleInit(): Promise<void> {
+    const rows = await this.repo
+      .createQueryBuilder('v')
+      .select('v.dimension', 'dimension')
+      .addSelect('SUM(v.value)', 'net')
+      .groupBy('v.dimension')
+      .addGroupBy('v.clip_id')
+      .addGroupBy('v.target_id')
+      .getRawMany<{ dimension: string; net: string }>();
+
+    const goldenByDimension: Record<string, number> = {};
+    for (const row of rows) {
+      if (Number(row.net) >= GOLDEN_THRESHOLD) {
+        goldenByDimension[row.dimension] = (goldenByDimension[row.dimension] || 0) + 1;
+      }
+    }
+    for (const [dimension, count] of Object.entries(goldenByDimension)) {
+      this.metrics.clipsGoldenTotal.set({ dimension }, count);
+    }
+  }
 
   async cast(data: {
     clipId: string;
@@ -44,16 +73,50 @@ export class VoteService {
         username: data.username,
       },
     });
+    const oldValue = existing?.value ?? 0;
+
+    let saved: Vote;
     if (existing) {
       existing.value = data.value;
       existing.createdAt = new Date().toISOString();
-      return this.repo.save(existing);
+      saved = await this.repo.save(existing);
+    } else {
+      const vote = this.repo.create({
+        ...data,
+        createdAt: new Date().toISOString(),
+      });
+      saved = await this.repo.save(vote);
     }
-    const vote = this.repo.create({
-      ...data,
-      createdAt: new Date().toISOString(),
-    });
-    return this.repo.save(vote);
+
+    this.metrics.votesCastTotal.inc({ dimension: data.dimension, value: String(data.value) });
+    await this.updateGoldenGauge(data.clipId, data.dimension, data.targetId, data.value - oldValue);
+
+    return saved;
+  }
+
+  private async updateGoldenGauge(
+    clipId: string,
+    dimension: string,
+    targetId: string | undefined,
+    delta: number,
+  ): Promise<void> {
+    if (delta === 0) return;
+
+    const netRow = await this.repo
+      .createQueryBuilder('v')
+      .select('SUM(v.value)', 'net')
+      .where('v.clip_id = :clipId', { clipId })
+      .andWhere('v.dimension = :dimension', { dimension })
+      .andWhere(targetId ? 'v.target_id = :targetId' : 'v.target_id IS NULL', { targetId })
+      .getRawOne<{ net: string | null }>();
+
+    const net = Number(netRow?.net) || 0;
+    const priorNet = net - delta;
+    const wasGolden = priorNet >= GOLDEN_THRESHOLD;
+    const isGolden = net >= GOLDEN_THRESHOLD;
+
+    if (isGolden && !wasGolden) this.metrics.clipsGoldenTotal.inc({ dimension });
+    else if (wasGolden && !isGolden) this.metrics.clipsGoldenTotal.dec({ dimension });
   }
 
   async removeByUser(username: string): Promise<void> {

@@ -2,11 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { IssueReport, IssueReportStatus } from '../domain/issue-report.entity';
+import { MetricsService } from '../observability/metrics.service';
 
 @Injectable()
 export class IssueReportService {
   constructor(
     @InjectRepository(IssueReport) private readonly repo: Repository<IssueReport>,
+    private readonly metrics: MetricsService,
   ) {}
 
   async create(data: {
@@ -21,7 +23,9 @@ export class IssueReportService {
       status: 'open',
       createdAt: new Date().toISOString(),
     });
-    return this.repo.save(report);
+    const saved = await this.repo.save(report);
+    this.metrics.issueReportsTotal.inc({ dimension: data.dimension });
+    return saved;
   }
 
   async findByStatus(status?: IssueReportStatus): Promise<IssueReport[]> {

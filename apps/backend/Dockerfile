@@ -17,4 +17,4 @@ COPY apps/frontend/package.json apps/frontend/package.json
 RUN pnpm install --frozen-lockfile --prod --filter backend
 COPY --from=builder /app/apps/backend/dist ./apps/backend/dist
 EXPOSE 3000
-CMD ["node", "apps/backend/dist/main"]
+CMD ["node", "-r", "apps/backend/dist/tracing.js", "apps/backend/dist/main"]

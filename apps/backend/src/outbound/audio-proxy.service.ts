@@ -5,15 +5,34 @@ import { Clip } from '../domain/clip.entity';
 import { Response } from 'express';
 import * as https from 'https';
 import * as http from 'http';
+import { MetricsService } from '../observability/metrics.service';
 
 const HF_BASE =
   'https://huggingface.co/datasets/softcatala/catalan-youtube-speech/resolve/main';
 
 @Injectable()
 export class AudioProxyService {
-  constructor(@InjectRepository(Clip) private readonly clips: Repository<Clip>) {}
+  constructor(
+    @InjectRepository(Clip) private readonly clips: Repository<Clip>,
+    private readonly metrics: MetricsService,
+  ) {}
 
   async streamAudio(clipId: string, res: Response, rangeHeader?: string): Promise<void> {
+    const start = process.hrtime.bigint();
+    try {
+      await this.doStreamAudio(clipId, res, rangeHeader);
+      this.metrics.audioProxyRequestsTotal.inc({ outcome: 'ok' });
+    } catch (err) {
+      this.metrics.audioProxyRequestsTotal.inc({
+        outcome: err instanceof NotFoundException ? 'not_found' : 'upstream_error',
+      });
+      throw err;
+    } finally {
+      this.metrics.audioProxyDuration.observe(Number(process.hrtime.bigint() - start) / 1e9);
+    }
+  }
+
+  private async doStreamAudio(clipId: string, res: Response, rangeHeader?: string): Promise<void> {
     const clip = await this.clips.findOne({ where: { clipId } });
     if (!clip) throw new NotFoundException(`Clip ${clipId} not found`);
 
@@ -80,7 +99,10 @@ export class AudioProxyService {
               return;
             }
             upstream.pipe(res);
-            upstream.on('end', resolve);
+            upstream.on('end', () => {
+              this.metrics.audioProxyBytesTotal.inc(contentLength);
+              resolve();
+            });
             upstream.on('error', reject);
           },
         );
