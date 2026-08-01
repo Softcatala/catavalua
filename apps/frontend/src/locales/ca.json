@@ -102,6 +102,7 @@
     "goldenBadge": "✓ daurat",
     "flaggedIrrelevant": "✗ marcat com a irrellevant",
     "alreadyVoted": "Ja heu votat {{emoji}} en aquest clip per a {{dimension}}. Votar de nou actualitzarà la vostra elecció.",
+    "correctedDimension": "Heu corregit {{dimension}}: ara es mostra {{value}}. Votar de nou actualitzarà la vostra elecció.",
     "edit": "Edita"
   },
   "footer": {

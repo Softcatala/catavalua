@@ -102,6 +102,7 @@
     "goldenBadge": "✓ golden",
     "flaggedIrrelevant": "✗ flagged irrelevant",
     "alreadyVoted": "You already voted {{emoji}} on this clip for {{dimension}}. Voting again will update your choice.",
+    "correctedDimension": "You corrected {{dimension}}: it now shows {{value}}. Voting again will update your choice.",
     "edit": "Edit"
   },
   "footer": {

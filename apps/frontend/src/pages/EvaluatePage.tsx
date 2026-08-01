@@ -280,9 +280,29 @@ export function EvaluatePage({ username }: Props) {
   };
 
   const userVotesForDimension = state?.userVotes.filter((v) => v.dimension === dimension) ?? [];
-  // Prefer the negative vote when both exist (gender/dialect flips create a positive
-  // companion row too) — the negative one reflects the evaluator's actual judgement.
-  const userVoteForDimension = userVotesForDimension.find((v) => v.value === -1) ?? userVotesForDimension[0];
+
+  // Gender/dialect votes can flip between competing targets (a downvote auto-raises
+  // the corrected candidate as a +1 companion row), so "the user's current stance" is
+  // best represented by whichever vote matches what's actually displayed right now —
+  // not just "any negative row", which goes stale the moment a correction is
+  // reconfirmed, or becomes ambiguous after more than one correction round.
+  const dimResolvedValue = dimension === 'gender'
+    ? genderResolved.value
+    : dimension === 'dialect'
+    ? dialectResolved.value
+    : null;
+  const userVoteOnResolved = dimResolvedValue
+    ? userVotesForDimension.find((v) => v.targetId === dimResolvedValue)
+    : undefined;
+  const userVoteForDimension = userVoteOnResolved
+    ?? userVotesForDimension.find((v) => v.value === -1)
+    ?? userVotesForDimension[0];
+  // True only for an actual correction (a +1 on what's shown, alongside a -1 the
+  // user cast on some other target) — not a plain first-time confirmation.
+  const userCorrectedDimension =
+    !!userVoteOnResolved &&
+    userVoteOnResolved.value === 1 &&
+    userVotesForDimension.some((v) => v.value === -1 && v.targetId !== dimResolvedValue);
   const netVotes = dimension === 'gender'
     ? genderResolved.netVotes
     : dimension === 'dialect'
@@ -696,10 +716,17 @@ export function EvaluatePage({ username }: Props) {
 
           {userVoteForDimension && (
             <p className="text-center text-sm text-gray-400">
-              {t('evaluate.alreadyVoted', {
-                emoji: userVoteForDimension.value === 1 ? '👍' : '👎',
-                dimension: t(`dimension.${dimension}`),
-              })}
+              {userCorrectedDimension
+                ? t('evaluate.correctedDimension', {
+                    dimension: t(`dimension.${dimension}`),
+                    value: dimension === 'gender'
+                      ? translateValue(t, 'gender', dimResolvedValue)
+                      : translateValue(t, 'dialect', dimResolvedValue),
+                  })
+                : t('evaluate.alreadyVoted', {
+                    emoji: userVoteForDimension.value === 1 ? '👍' : '👎',
+                    dimension: t(`dimension.${dimension}`),
+                  })}
             </p>
           )}
         </div>
