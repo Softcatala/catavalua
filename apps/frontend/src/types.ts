@@ -72,3 +72,13 @@ export const DIALECT_VALUES = [
   'septentrional',
   'alguerès',
 ] as const;
+
+export const IRRELEVANT_REASONS = [
+  'not_catalan',
+  'multiple_speakers',
+  'code_switching',
+  'no_speech',
+  'unintelligible',
+] as const;
+
+export type IrrelevantReason = (typeof IRRELEVANT_REASONS)[number];

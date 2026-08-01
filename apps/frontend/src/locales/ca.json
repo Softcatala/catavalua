@@ -88,8 +88,10 @@
     "recordDialect": "Registra el dialecte",
     "suggestDialect": "Suggereix aquest dialecte",
     "skip": "Omet",
-    "notRelevant": "⚑ No és en català / No és rellevant",
-    "notRelevantTitle": "Marca aquest clip com a no català o irrellevant",
+    "notRelevant": "⚑ No és rellevant",
+    "notRelevantTitle": "Marca aquest clip com a irrellevant (llengua incorrecta, diversos parlants, sense veu, etc.)",
+    "irrelevantReasonPrompt": "Per què és irrellevant aquest clip?",
+    "flagIrrelevantConfirm": "Marca com a irrellevant",
     "reportIssue": "Informa d'un problema",
     "reportIssueTitle": "Informa d'un problema amb aquest clip o aquesta avaluació",
     "reportIssuePlaceholder": "Descriu el problema (màxim 1000 caràcters)…",
@@ -154,6 +156,13 @@
       "human": "Humana",
       "candidate_1": "Candidat 1",
       "candidate_2": "Candidat 2"
+    },
+    "irrelevantReason": {
+      "not_catalan": "No és en català",
+      "multiple_speakers": "Diversos parlants",
+      "code_switching": "Llengües barrejades (code-switching)",
+      "no_speech": "Sense veu (música/silenci/soroll)",
+      "unintelligible": "Parla inintel·ligible"
     }
   }
 }

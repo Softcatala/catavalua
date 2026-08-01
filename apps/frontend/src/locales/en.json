@@ -88,8 +88,10 @@
     "recordDialect": "Record dialect",
     "suggestDialect": "Suggest this dialect",
     "skip": "Skip",
-    "notRelevant": "⚑ Not in Catalan / Not relevant",
-    "notRelevantTitle": "Flag this clip as not in Catalan or otherwise irrelevant",
+    "notRelevant": "⚑ Not relevant",
+    "notRelevantTitle": "Flag this clip as irrelevant (wrong language, multiple speakers, no speech, etc.)",
+    "irrelevantReasonPrompt": "Why is this clip irrelevant?",
+    "flagIrrelevantConfirm": "Flag as irrelevant",
     "reportIssue": "Report an issue",
     "reportIssueTitle": "Report a problem with this clip or evaluation",
     "reportIssuePlaceholder": "Describe the issue (max 1000 characters)…",
@@ -154,6 +156,13 @@
       "human": "Human",
       "candidate_1": "Candidate 1",
       "candidate_2": "Candidate 2"
+    },
+    "irrelevantReason": {
+      "not_catalan": "Not in Catalan",
+      "multiple_speakers": "Multiple speakers",
+      "code_switching": "Mixed languages (code-switching)",
+      "no_speech": "No speech (music/silence/noise)",
+      "unintelligible": "Unintelligible speech"
     }
   }
 }

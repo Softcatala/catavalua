@@ -54,7 +54,8 @@ export class MetricsService {
 
   readonly clipsFlaggedIrrelevantTotal = new client.Counter({
     name: 'catvoice_clips_flagged_irrelevant_total',
-    help: 'Clips flagged as irrelevant',
+    help: 'Clips flagged as irrelevant, by reason',
+    labelNames: ['reason'],
     registers: [this.registry],
   });
 

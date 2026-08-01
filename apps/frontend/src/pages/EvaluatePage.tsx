@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { AudioPlayer } from '../components/AudioPlayer';
 import type { Clip, UniqueTranscription, VoteSummary, Vote } from '../types';
-import { DIMENSIONS, DIALECT_VALUES, type Dimension } from '../types';
+import { DIMENSIONS, DIALECT_VALUES, IRRELEVANT_REASONS, type Dimension, type IrrelevantReason } from '../types';
 import { translateValue } from '../i18nValues';
 import { resolveDimension } from '../voteUtils';
 
@@ -57,6 +57,8 @@ export function EvaluatePage({ username }: Props) {
   const [copied, setCopied] = useState(false);
   const [dialectPicker, setDialectPicker] = useState(false);
   const [selectedDialect, setSelectedDialect] = useState('');
+  const [irrelevantPicker, setIrrelevantPicker] = useState(false);
+  const [irrelevantReason, setIrrelevantReason] = useState<IrrelevantReason>('not_catalan');
   const [reportOpen, setReportOpen] = useState(false);
   const [reportText, setReportText] = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
@@ -73,6 +75,8 @@ export function EvaluatePage({ username }: Props) {
     setCopied(false);
     setDialectPicker(false);
     setSelectedDialect('');
+    setIrrelevantPicker(false);
+    setIrrelevantReason('not_catalan');
     setReportOpen(false);
     setReportText('');
     setReportSubmitted(false);
@@ -163,11 +167,11 @@ export function EvaluatePage({ username }: Props) {
     }
   };
 
-  const flagIrrelevant = async () => {
+  const confirmFlagIrrelevant = async () => {
     if (!state || voting) return;
     setVoting(true);
     try {
-      await api.flagIrrelevant(state.clip.clipId, username);
+      await api.flagIrrelevant(state.clip.clipId, username, irrelevantReason);
       loadNext();
     } catch (e) {
       setError(String(e));
@@ -662,7 +666,7 @@ export function EvaluatePage({ username }: Props) {
           {/* Not relevant flag + report an issue */}
           <div className="flex justify-center items-center gap-4">
             <button
-              onClick={flagIrrelevant}
+              onClick={() => setIrrelevantPicker((o) => !o)}
               disabled={voting}
               className="text-xs text-orange-500 hover:text-orange-700 hover:underline disabled:opacity-40"
               title={t('evaluate.notRelevantTitle')}
@@ -677,6 +681,39 @@ export function EvaluatePage({ username }: Props) {
               {t('evaluate.reportIssue')}
             </button>
           </div>
+
+          {irrelevantPicker && (
+            <div className="bg-white rounded-2xl border border-gray-200 p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t('evaluate.irrelevantReasonPrompt')}
+              </label>
+              <select
+                value={irrelevantReason}
+                onChange={(e) => setIrrelevantReason(e.target.value as IrrelevantReason)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-300"
+                autoFocus
+              >
+                {IRRELEVANT_REASONS.map((r) => (
+                  <option key={r} value={r}>{translateValue(t, 'irrelevantReason', r)}</option>
+                ))}
+              </select>
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={confirmFlagIrrelevant}
+                  disabled={voting}
+                  className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white font-semibold py-2 rounded-lg transition"
+                >
+                  {t('evaluate.flagIrrelevantConfirm')}
+                </button>
+                <button
+                  onClick={() => { setIrrelevantPicker(false); setIrrelevantReason('not_catalan'); }}
+                  className="px-4 bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium py-2 rounded-lg transition"
+                >
+                  {t('evaluate.cancel')}
+                </button>
+              </div>
+            </div>
+          )}
 
           {reportOpen && (
             <div className="bg-white rounded-2xl border border-gray-200 p-4">

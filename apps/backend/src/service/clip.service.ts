@@ -13,6 +13,18 @@ export interface ClipWithBest {
   voteSummary: Record<string, number>; // dimension -> net votes for golden item
 }
 
+// Categories for why a clip was flagged irrelevant, stored as the 'relevance'
+// vote's targetId — lets us tell "not Catalan" apart from "multiple speakers"
+// etc. for future post-processing (e.g. splitting multi-speaker clips).
+export const IRRELEVANT_REASONS = [
+  'not_catalan',
+  'multiple_speakers',
+  'code_switching',
+  'no_speech',
+  'unintelligible',
+] as const;
+export type IrrelevantReason = (typeof IRRELEVANT_REASONS)[number];
+
 @Injectable()
 export class ClipService {
   constructor(
@@ -76,7 +88,9 @@ export class ClipService {
       : [];
     const excludeIds = [...new Set([...voted.map((v) => v.clipId), ...skipIds])];
 
-    const baseWhere = '(clip.is_relevant IS NULL OR clip.is_relevant = 1)';
+    // tar_file IS NOT NULL: never send the evaluator to a clip with no
+    // indexed audio — there'd be nothing to listen to.
+    const baseWhere = "(clip.is_relevant IS NULL OR clip.is_relevant = 1) AND clip.tar_file IS NOT NULL";
 
     const buildQb = (excludeIds: string[]) => {
       const qb = this.clips.createQueryBuilder('clip').where(baseWhere);
@@ -85,45 +99,6 @@ export class ClipService {
       }
       return qb;
     };
-
-    // For transcription dimension: prefer clips whose audio is actually
-    // indexed (tar_file set), so the evaluator can listen rather than hit
-    // "audio not indexed yet" — and among those, prefer 2+ model agreement
-    // on the same text (a strong quality signal) when available.
-    if (dimension === 'transcription') {
-      const agreedAndIndexed = await buildQb(excludeIds)
-        .andWhere('clip.tar_file IS NOT NULL')
-        .andWhere(`clip.clip_id IN (
-          SELECT t.clip_id FROM transcriptions t
-          GROUP BY t.clip_id, t.text
-          HAVING COUNT(*) >= 2
-        )`)
-        .orderBy('RANDOM()')
-        .limit(1)
-        .getOne();
-
-      if (agreedAndIndexed) return agreedAndIndexed;
-
-      const indexedOnly = await buildQb(excludeIds)
-        .andWhere('clip.tar_file IS NOT NULL')
-        .orderBy('RANDOM()')
-        .limit(1)
-        .getOne();
-
-      if (indexedOnly) return indexedOnly;
-    }
-
-    // For gender: same audio-availability concern as transcription — prefer
-    // clips the evaluator can actually listen to.
-    if (dimension === 'gender') {
-      const indexed = await buildQb(excludeIds)
-        .andWhere('clip.tar_file IS NOT NULL')
-        .orderBy('RANDOM()')
-        .limit(1)
-        .getOne();
-
-      if (indexed) return indexed;
-    }
 
     // For dialect: most clips have no dialect signal at all (no Gemini guess,
     // no town-derived vote — see scripts/infer_dialect.py), which sends the
@@ -157,19 +132,26 @@ export class ClipService {
     return result;
   }
 
-  async flagIrrelevant(clipId: string, username: string): Promise<void> {
-    this.metrics.clipsFlaggedIrrelevantTotal.inc();
-    // Record a "not_relevant" vote so we can track who flagged it
-    await this.votes.save(
-      this.votes.create({
-        clipId,
-        dimension: 'relevance',
-        targetId: 'not_relevant',
-        username,
-        value: -1,
-        createdAt: new Date().toISOString(),
-      }),
-    );
+  async flagIrrelevant(clipId: string, username: string, reason: IrrelevantReason): Promise<void> {
+    this.metrics.clipsFlaggedIrrelevantTotal.inc({ reason });
+    // One 'relevance' vote per user per clip, regardless of reason — if the
+    // user already flagged this clip (perhaps with a different reason), update
+    // it in place rather than inserting a second row for the same opinion.
+    const existing = await this.votes.findOne({ where: { clipId, dimension: 'relevance', username } });
+    if (existing) {
+      await this.votes.update(existing.id, { targetId: reason, value: -1, createdAt: new Date().toISOString() });
+    } else {
+      await this.votes.save(
+        this.votes.create({
+          clipId,
+          dimension: 'relevance',
+          targetId: reason,
+          username,
+          value: -1,
+          createdAt: new Date().toISOString(),
+        }),
+      );
+    }
     // If 2+ users flag it, mark it irrelevant
     const flags = await this.votes.count({ where: { clipId, dimension: 'relevance', value: -1 } });
     if (flags >= 2) {

@@ -83,9 +83,9 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
-  flagIrrelevant: (clipId: string, username: string) =>
+  flagIrrelevant: (clipId: string, username: string, reason: string) =>
     request<{ ok: boolean }>(
-      `/clips/${clipId}/flag-irrelevant?username=${encodeURIComponent(username)}`,
+      `/clips/${clipId}/flag-irrelevant?username=${encodeURIComponent(username)}&reason=${encodeURIComponent(reason)}`,
       { method: 'POST' },
     ),
 

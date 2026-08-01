@@ -11,7 +11,7 @@ import {
   BadRequestException,
   UseGuards,
 } from '@nestjs/common';
-import { ClipService } from '../service/clip.service';
+import { ClipService, IRRELEVANT_REASONS, IrrelevantReason } from '../service/clip.service';
 import { TranscriptionService } from '../service/transcription.service';
 import { ApiKeyGuard } from './api-key.guard';
 import { IsString, IsOptional, IsNumber, IsNotEmpty } from 'class-validator';
@@ -79,9 +79,16 @@ export class ClipController {
   }
 
   @Post(':id/flag-irrelevant')
-  async flagIrrelevant(@Param('id') id: string, @Query('username') username: string) {
+  async flagIrrelevant(
+    @Param('id') id: string,
+    @Query('username') username: string,
+    @Query('reason') reason: string = 'not_catalan',
+  ) {
     if (!username) throw new BadRequestException('username required');
-    await this.clipService.flagIrrelevant(id, username);
+    if (!IRRELEVANT_REASONS.includes(reason as IrrelevantReason)) {
+      throw new BadRequestException(`invalid reason: ${reason}`);
+    }
+    await this.clipService.flagIrrelevant(id, username, reason as IrrelevantReason);
     return { ok: true };
   }
 
