@@ -88,7 +88,7 @@
     "recordDialect": "Registra el dialecte",
     "suggestDialect": "Suggereix aquest dialecte",
     "skip": "Omet",
-    "notRelevant": "⚑ No és rellevant",
+    "notRelevant": "⚑ No és en català / multiples veus / soroll",
     "notRelevantTitle": "Marca aquest clip com a irrellevant (llengua incorrecta, diversos parlants, sense veu, etc.)",
     "irrelevantReasonPrompt": "Per què és irrellevant aquest clip?",
     "flagIrrelevantConfirm": "Marca com a irrellevant",
