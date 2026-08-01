@@ -10,6 +10,14 @@ import { MetricsService } from '../observability/metrics.service';
 const HF_BASE =
   'https://huggingface.co/datasets/softcatala/catalan-youtube-speech/resolve/main';
 
+// Every clip fetch hits huggingface.co (redirect) then a signed CDN URL on a
+// consistent host (us.aws.cdn.hf.co as of writing) for the actual bytes —
+// both are the same host across every clip/tar file. Node's default global
+// agent doesn't keep connections alive, so without this every request pays
+// for a fresh TCP+TLS handshake to both hosts (measured ~90-230ms each).
+const httpsAgent = new https.Agent({ keepAlive: true });
+const httpAgent = new http.Agent({ keepAlive: true });
+
 @Injectable()
 export class AudioProxyService {
   constructor(
@@ -82,7 +90,10 @@ export class AudioProxyService {
 
         const req = protocol.get(
           targetUrl,
-          { headers: { Range: `bytes=${fetchStart}-${fetchEnd}` } },
+          {
+            headers: { Range: `bytes=${fetchStart}-${fetchEnd}` },
+            agent: protocol === https ? httpsAgent : httpAgent,
+          },
           (upstream) => {
             const code = upstream.statusCode ?? 0;
             if (code >= 300 && code < 400 && upstream.headers.location) {

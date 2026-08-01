@@ -85,57 +85,77 @@ export class ClipService {
     // tar_file IS NOT NULL: never send the evaluator to a clip with no
     // indexed audio — there'd be nothing to listen to.
     const baseWhere = "(clip.is_relevant IS NULL OR clip.is_relevant = 1) AND clip.tar_file IS NOT NULL";
+    const baseQb = () => this.clips.createQueryBuilder('clip').where(baseWhere);
 
-    // Excluding already-voted clips via NOT IN(...) meant pulling every voted
-    // clip_id into JS and inlining it as SQL params — a list that grows
-    // without bound as a user evaluates more clips, and that can eventually
-    // exceed SQLite's bound-parameter limit. NOT EXISTS against the
-    // (username, dimension, clip_id) index does the same exclusion as an
-    // index seek per candidate row instead. skipIds (from the browser's
-    // in-session skip list) stay a NOT IN — they're small and short-lived.
-    const buildQb = (applyExclusions: boolean) => {
-      const qb = this.clips.createQueryBuilder('clip').where(baseWhere);
-      if (applyExclusions && username) {
-        qb.andWhere(
-          `NOT EXISTS (
-            SELECT 1 FROM votes v
-            WHERE v.clip_id = clip.clip_id AND v.username = :username AND v.dimension = :dimension
-          )`,
-          { username, dimension },
-        );
-      }
-      if (applyExclusions && skipIds.length > 0) {
-        qb.andWhere('clip.clip_id NOT IN (:...skipIds)', { skipIds });
-      }
-      return qb;
-    };
+    // Any extra predicate on top of baseWhere here — a NOT IN/NOT EXISTS
+    // exclusion, the dialect-signal filter below — makes SQLite fall off
+    // the fast path for `ORDER BY RANDOM() LIMIT n` on a clips-sized table:
+    // benchmarked at 150-200ms with only baseWhere vs. 1.4-2s+ with one
+    // more AND clause added, *regardless* of which clause (confirmed this
+    // isn't NOT IN specifically — NOT EXISTS and a LEFT JOIN anti-join cost
+    // the same). So: sample randomly with only baseWhere (cheap — LIMIT
+    // barely matters, the cost is the sort, not rows returned), then apply
+    // exclusion/preference against the sample in application code.
+    const SAMPLE_SIZE = 200;
 
-    // For dialect: most clips have no dialect signal at all (no Gemini guess,
-    // no town-derived vote — see scripts/infer_dialect.py), which sends the
-    // evaluator to a dead-end clip with nothing to confirm/correct. Prefer
-    // clips that DO have a signal — either clip.detected_dialect, or an
-    // existing 'dialect' vote (e.g. from the bulk town-inference import) —
-    // so evaluators mostly see clips they can actually act on.
-    if (dimension === 'dialect') {
-      const withSignal = await buildQb(true)
-        .andWhere(`(clip.detected_dialect IS NOT NULL OR clip.clip_id IN (
-          SELECT v.clip_id FROM votes v WHERE v.dimension = 'dialect'
-        ))`)
-        .orderBy('RANDOM()')
-        .limit(1)
-        .getOne();
-
-      if (withSignal) return withSignal;
+    const excludedIds = new Set<string>(skipIds);
+    if (username) {
+      const voted = await this.votes.find({ where: { username, dimension }, select: ['clipId'] });
+      for (const v of voted) excludedIds.add(v.clipId);
     }
 
-    const result = await buildQb(true).orderBy('RANDOM()').limit(1).getOne();
+    const sample = await baseQb().orderBy('RANDOM()').limit(SAMPLE_SIZE).getMany();
+    const candidates = sample.filter((c) => !excludedIds.has(c.clipId));
+
+    if (candidates.length > 0) {
+      // For dialect: most clips have no dialect signal at all (no Gemini
+      // guess, no town-derived vote — see scripts/infer_dialect.py), which
+      // sends the evaluator to a dead-end clip with nothing to
+      // confirm/correct. Prefer clips that DO have a signal — either
+      // clip.detected_dialect, or an existing 'dialect' vote (e.g. from the
+      // bulk town-inference import) — scoped to just this sample's ids so
+      // it stays a cheap indexed lookup instead of pulling every
+      // dialect-voted clip in the database.
+      if (dimension === 'dialect') {
+        const withoutOwnSignal = candidates.filter((c) => !c.detectedDialect);
+        const signalIds =
+          withoutOwnSignal.length > 0
+            ? new Set(
+                (
+                  await this.votes
+                    .createQueryBuilder('v')
+                    .select('DISTINCT v.clip_id', 'clipId')
+                    .where('v.dimension = :dimension', { dimension: 'dialect' })
+                    .andWhere('v.clip_id IN (:...ids)', { ids: withoutOwnSignal.map((c) => c.clipId) })
+                    .getRawMany<{ clipId: string }>()
+                ).map((v) => v.clipId),
+              )
+            : new Set<string>();
+        const withSignal = candidates.find((c) => c.detectedDialect || signalIds.has(c.clipId));
+        if (withSignal) return withSignal;
+      }
+
+      return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    // The sample was exhausted entirely by exclusions (this user has voted
+    // on most of what currently matches baseWhere) — fall back to the
+    // accurate, exclusion-filtered query. Same cost profile as above
+    // (1-2s), but rare: only hit once a user nears the end of the dataset.
+    const excludedList = [...excludedIds];
+    const fallbackQb = baseQb();
+    if (excludedList.length > 0) {
+      fallbackQb.andWhere('clip.clip_id NOT IN (:...ids)', { ids: excludedList });
+    }
+    const fallback = await fallbackQb.orderBy('RANDOM()').limit(1).getOne();
+    if (fallback) return fallback;
 
     // If user has evaluated all clips, cycle back (but still exclude irrelevant)
-    if (!result && (username || skipIds.length > 0)) {
-      return buildQb(false).orderBy('RANDOM()').limit(1).getOne();
+    if (excludedList.length > 0) {
+      return baseQb().orderBy('RANDOM()').limit(1).getOne();
     }
 
-    return result;
+    return null;
   }
 
   async flagIrrelevant(clipId: string, username: string, reason: IrrelevantReason): Promise<void> {
