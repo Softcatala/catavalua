@@ -88,4 +88,16 @@ export const api = {
       `/clips/${clipId}/flag-irrelevant?username=${encodeURIComponent(username)}`,
       { method: 'POST' },
     ),
+
+  reportIssue: (data: {
+    clipId: string;
+    dimension: string;
+    dimensionValue?: string | null;
+    message: string;
+    username: string;
+  }) =>
+    request<{ id: number }>('/issue-reports', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };

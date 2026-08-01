@@ -5,6 +5,7 @@ import { ClipService } from './clip.service';
 import { Clip } from '../domain/clip.entity';
 import { Transcription } from '../domain/transcription.entity';
 import { Vote } from '../domain/vote.entity';
+import { IssueReport } from '../domain/issue-report.entity';
 
 describe('ClipService', () => {
   let service: ClipService;
@@ -18,10 +19,10 @@ describe('ClipService', () => {
         TypeOrmModule.forRoot({
           type: 'sqlite',
           database: ':memory:',
-          entities: [Clip, Transcription, Vote],
+          entities: [Clip, Transcription, Vote, IssueReport],
           synchronize: true,
         }),
-        TypeOrmModule.forFeature([Clip, Transcription, Vote]),
+        TypeOrmModule.forFeature([Clip, Transcription, Vote, IssueReport]),
       ],
       providers: [ClipService],
     }).compile();

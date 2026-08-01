@@ -49,6 +49,10 @@ export function EvaluatePage({ username }: Props) {
   const [copied, setCopied] = useState(false);
   const [dialectPicker, setDialectPicker] = useState(false);
   const [selectedDialect, setSelectedDialect] = useState('');
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportText, setReportText] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportSubmitted, setReportSubmitted] = useState(false);
   // Prevents double-fetch when we push a new clipId to the URL ourselves
   const selfNavRef = useRef(false);
 
@@ -61,6 +65,9 @@ export function EvaluatePage({ username }: Props) {
     setCopied(false);
     setDialectPicker(false);
     setSelectedDialect('');
+    setReportOpen(false);
+    setReportText('');
+    setReportSubmitted(false);
   }
 
   function applyData(data: { clip: import('../types').Clip; uniqueTranscriptions: import('../types').UniqueTranscription[]; votes: VoteSummary[]; userVotes: Vote[] }) {
@@ -159,6 +166,36 @@ export function EvaluatePage({ username }: Props) {
 
   const genderResolved = resolveDimension(state?.votes ?? [], 'gender', state?.clip.gender);
   const dialectResolved = resolveDimension(state?.votes ?? [], 'dialect', state?.clip.detectedDialect);
+
+  // Snapshot of what's actually on screen for the current dimension, kept as a
+  // reference on the report — not a live pointer, since votes may change it later.
+  const currentDimensionValue =
+    dimension === 'transcription'
+      ? (state?.uniqueTranscriptions[0]?.text ?? state?.clip.candidate1 ?? state?.clip.candidate2 ?? null)
+      : dimension === 'gender'
+      ? genderResolved.value
+      : dialectResolved.value;
+
+  const submitIssueReport = async () => {
+    if (!state || !reportText.trim() || reportSubmitting) return;
+    setReportSubmitting(true);
+    try {
+      await api.reportIssue({
+        clipId: state.clip.clipId,
+        dimension,
+        dimensionValue: currentDimensionValue,
+        message: reportText.trim(),
+        username,
+      });
+      setReportOpen(false);
+      setReportText('');
+      setReportSubmitted(true);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
 
   const vote = async (value: 1 | -1) => {
     if (!state || voting) return;
@@ -583,8 +620,8 @@ export function EvaluatePage({ username }: Props) {
             </div>
           )}
 
-          {/* Not relevant flag */}
-          <div className="flex justify-center">
+          {/* Not relevant flag + report an issue */}
+          <div className="flex justify-center items-center gap-4">
             <button
               onClick={flagIrrelevant}
               disabled={voting}
@@ -593,7 +630,50 @@ export function EvaluatePage({ username }: Props) {
             >
               {t('evaluate.notRelevant')}
             </button>
+            <button
+              onClick={() => setReportOpen((o) => !o)}
+              className="text-xs text-gray-400 hover:text-gray-600 hover:underline"
+              title={t('evaluate.reportIssueTitle')}
+            >
+              {t('evaluate.reportIssue')}
+            </button>
           </div>
+
+          {reportOpen && (
+            <div className="bg-white rounded-2xl border border-gray-200 p-4">
+              <textarea
+                value={reportText}
+                onChange={(e) => setReportText(e.target.value.slice(0, 1000))}
+                maxLength={1000}
+                rows={3}
+                placeholder={t('evaluate.reportIssuePlaceholder')}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-300 resize-none"
+                autoFocus
+              />
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-xs text-gray-400">{reportText.length}/1000</span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setReportOpen(false); setReportText(''); }}
+                    className="text-xs text-gray-400 hover:text-gray-600"
+                  >
+                    {t('evaluate.cancel')}
+                  </button>
+                  <button
+                    onClick={submitIssueReport}
+                    disabled={!reportText.trim() || reportSubmitting}
+                    className="text-xs bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg font-medium transition"
+                  >
+                    {t('evaluate.reportIssueSubmit')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {reportSubmitted && (
+            <p className="text-center text-sm text-green-600">{t('evaluate.reportIssueThanks')}</p>
+          )}
 
           {userVoteForDimension && (
             <p className="text-center text-sm text-gray-400">

@@ -4,6 +4,7 @@ import { Repository, Like } from 'typeorm';
 import { Clip } from '../domain/clip.entity';
 import { Transcription } from '../domain/transcription.entity';
 import { Vote } from '../domain/vote.entity';
+import { IssueReport } from '../domain/issue-report.entity';
 
 export interface ClipWithBest {
   clip: Clip;
@@ -17,6 +18,7 @@ export class ClipService {
     @InjectRepository(Clip) private readonly clips: Repository<Clip>,
     @InjectRepository(Transcription) private readonly transcriptions: Repository<Transcription>,
     @InjectRepository(Vote) private readonly votes: Repository<Vote>,
+    @InjectRepository(IssueReport) private readonly issueReports: Repository<IssueReport>,
   ) {}
 
   async list(search: string, page: number, limit: number): Promise<{ items: ClipWithBest[]; total: number }> {
@@ -60,6 +62,7 @@ export class ClipService {
     // FKs are ON DELETE NO ACTION, so children must go first.
     await this.votes.delete({ clipId });
     await this.transcriptions.delete({ clipId });
+    await this.issueReports.delete({ clipId });
     await this.clips.delete({ clipId });
   }
 
