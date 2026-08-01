@@ -82,20 +82,30 @@ export class ClipService {
 
   // Returns clips that the given username hasn't voted on for the given dimension
   async nextForEvaluation(username: string, dimension: string, skipIds: string[] = []): Promise<Clip | null> {
-    // Get clip IDs this user has already voted on for this dimension
-    const voted = username
-      ? await this.votes.find({ where: { username, dimension }, select: ['clipId'] })
-      : [];
-    const excludeIds = [...new Set([...voted.map((v) => v.clipId), ...skipIds])];
-
     // tar_file IS NOT NULL: never send the evaluator to a clip with no
     // indexed audio — there'd be nothing to listen to.
     const baseWhere = "(clip.is_relevant IS NULL OR clip.is_relevant = 1) AND clip.tar_file IS NOT NULL";
 
-    const buildQb = (excludeIds: string[]) => {
+    // Excluding already-voted clips via NOT IN(...) meant pulling every voted
+    // clip_id into JS and inlining it as SQL params — a list that grows
+    // without bound as a user evaluates more clips, and that can eventually
+    // exceed SQLite's bound-parameter limit. NOT EXISTS against the
+    // (username, dimension, clip_id) index does the same exclusion as an
+    // index seek per candidate row instead. skipIds (from the browser's
+    // in-session skip list) stay a NOT IN — they're small and short-lived.
+    const buildQb = (applyExclusions: boolean) => {
       const qb = this.clips.createQueryBuilder('clip').where(baseWhere);
-      if (excludeIds.length > 0) {
-        qb.andWhere('clip.clip_id NOT IN (:...ids)', { ids: excludeIds });
+      if (applyExclusions && username) {
+        qb.andWhere(
+          `NOT EXISTS (
+            SELECT 1 FROM votes v
+            WHERE v.clip_id = clip.clip_id AND v.username = :username AND v.dimension = :dimension
+          )`,
+          { username, dimension },
+        );
+      }
+      if (applyExclusions && skipIds.length > 0) {
+        qb.andWhere('clip.clip_id NOT IN (:...skipIds)', { skipIds });
       }
       return qb;
     };
@@ -107,7 +117,7 @@ export class ClipService {
     // existing 'dialect' vote (e.g. from the bulk town-inference import) —
     // so evaluators mostly see clips they can actually act on.
     if (dimension === 'dialect') {
-      const withSignal = await buildQb(excludeIds)
+      const withSignal = await buildQb(true)
         .andWhere(`(clip.detected_dialect IS NOT NULL OR clip.clip_id IN (
           SELECT v.clip_id FROM votes v WHERE v.dimension = 'dialect'
         ))`)
@@ -118,15 +128,11 @@ export class ClipService {
       if (withSignal) return withSignal;
     }
 
-    const result = await buildQb(excludeIds).orderBy('RANDOM()').limit(1).getOne();
+    const result = await buildQb(true).orderBy('RANDOM()').limit(1).getOne();
 
     // If user has evaluated all clips, cycle back (but still exclude irrelevant)
-    if (!result && excludeIds.length > 0) {
-      return this.clips.createQueryBuilder('clip')
-        .where(baseWhere)
-        .orderBy('RANDOM()')
-        .limit(1)
-        .getOne();
+    if (!result && (username || skipIds.length > 0)) {
+      return buildQb(false).orderBy('RANDOM()').limit(1).getOne();
     }
 
     return result;

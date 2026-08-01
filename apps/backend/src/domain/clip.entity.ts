@@ -1,8 +1,13 @@
-import { Entity, PrimaryColumn, Column, OneToMany } from 'typeorm';
+import { Entity, PrimaryColumn, Column, OneToMany, Index } from 'typeorm';
 import { Transcription } from './transcription.entity';
 import { Vote } from './vote.entity';
 
 @Entity('clips')
+// Matches nextForEvaluation's base filter (is_relevant/tar_file), so picking
+// a candidate clip is an index scan instead of a full table scan.
+@Index(['isRelevant', 'tarFile'])
+// Matches the dialect-signal preference in nextForEvaluation.
+@Index(['detectedDialect'])
 export class Clip {
   @PrimaryColumn({ name: 'clip_id' })
   clipId: string;

@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Unique } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Unique, Index } from 'typeorm';
 import { Clip } from './clip.entity';
 
 // dimension: 'transcription' | 'gender' | 'dialect' | (any future metadata field)
@@ -10,6 +10,11 @@ import { Clip } from './clip.entity';
 
 @Entity('votes')
 @Unique(['clipId', 'dimension', 'targetId', 'username'])
+// The existing unique index leads with clipId, so it can't serve lookups
+// that start from username or dimension alone — both needed by
+// ClipService.nextForEvaluation (exclude-already-voted, dialect signal).
+@Index(['username', 'dimension', 'clipId'])
+@Index(['dimension', 'clipId'])
 export class Vote {
   @PrimaryGeneratedColumn()
   id: number;
