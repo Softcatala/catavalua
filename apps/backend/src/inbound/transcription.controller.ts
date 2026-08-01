@@ -1,5 +1,6 @@
-import { Controller, Post, Delete, Param, ParseIntPipe, Body } from '@nestjs/common';
+import { Controller, Post, Delete, Param, ParseIntPipe, Body, UseGuards } from '@nestjs/common';
 import { TranscriptionService } from '../service/transcription.service';
+import { ApiKeyGuard } from './api-key.guard';
 import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
 class CreateTranscriptionDto {
@@ -18,7 +19,7 @@ export class TranscriptionController {
     return this.service.create(dto);
   }
 
-  // Gated at the Traefik layer (scauth) — not publicly reachable unauthenticated.
+  @UseGuards(ApiKeyGuard)
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number) {
     await this.service.remove(id);

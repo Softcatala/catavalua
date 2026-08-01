@@ -83,6 +83,12 @@ _RATE_LIMIT_RE = re.compile(
 # HTTP helpers
 # ---------------------------------------------------------------------------
 
+# Set from --api-key/$CATVOICE_API_KEY in main(). Sent on every POST — harmless
+# on the unprotected ones (e.g. /transcriptions), required by the pipeline-only
+# routes gated by ApiKeyGuard (POST /clips, POST /clips/:id/tar-index).
+API_KEY: str | None = None
+
+
 def fetch_range(url: str, start: int, end: int, timeout: int = 30) -> bytes:
     req = urllib.request.Request(url, headers={"Range": f"bytes={start}-{end}"})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -100,9 +106,10 @@ def http_post_json(url: str, payload: dict, timeout: int = 15, retries: int = 3)
     for attempt in range(1, retries + 1):
         try:
             data = json.dumps(payload).encode()
-            req = urllib.request.Request(
-                url, data=data, headers={"Content-Type": "application/json"}
-            )
+            headers = {"Content-Type": "application/json"}
+            if API_KEY:
+                headers["X-Api-Key"] = API_KEY
+            req = urllib.request.Request(url, data=data, headers=headers)
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 return json.loads(resp.read())
         except urllib.error.HTTPError as e:
@@ -547,6 +554,11 @@ def process_clip(api_url: str, row: dict, tar_index: dict[str, dict]) -> bool:
 def main():
     parser = argparse.ArgumentParser(description="CatVoice transcription pipeline")
     parser.add_argument("--api-url", default="http://localhost:3000")
+    parser.add_argument(
+        "--api-key", default=os.environ.get("CATVOICE_API_KEY"),
+        help="Value for X-Api-Key on pipeline-only routes (POST /clips, /clips/:id/tar-index). "
+             "Defaults to $CATVOICE_API_KEY."
+    )
     parser.add_argument("--max", type=int, default=0, help="Max clips to process (0=all)")
     parser.add_argument("--offset", type=int, default=0, help="Dataset row offset")
     parser.add_argument(
@@ -563,6 +575,9 @@ def main():
     )
     args = parser.parse_args()
     api_url = args.api_url.rstrip("/")
+
+    global API_KEY
+    API_KEY = args.api_key
 
     if args.build_index_only:
         log.info("Building TAR index (%d tar files)…", TAR_COUNT)

@@ -165,20 +165,27 @@ that pattern if you add other cascading deletes).
 | `GET` | `/clips?search=&page=&limit=` | Paginated list, enriched with best transcription + vote summary |
 | `GET` | `/clips/:id` | Single clip |
 | `GET` | `/clips/:id/transcriptions` | All transcriptions for a clip |
-| `POST` | `/clips` | Upsert (by `clipId`) |
-| `POST` | `/clips/:id/tar-index` | Set audio location (`tarFile`/`tarOffset`/`tarSize`) |
+| `POST` | `/clips` 🔑 | Upsert (by `clipId`) |
+| `POST` | `/clips/:id/tar-index` 🔑 | Set audio location (`tarFile`/`tarOffset`/`tarSize`) |
 | `POST` | `/clips/:id/flag-irrelevant` | Records a relevance-flag vote |
-| `DELETE` | `/clips/:id` | Cascades to the clip's transcriptions + votes |
+| `DELETE` | `/clips/:id` 🔑 | Cascades to the clip's transcriptions + votes |
 | `POST` | `/transcriptions` | Create (idempotent by `clipId`+`origin`+`text`) |
-| `DELETE` | `/transcriptions/:id` | |
+| `DELETE` | `/transcriptions/:id` 🔑 | |
 | `POST` | `/votes` | Cast/update a vote (upsert) |
-| `DELETE` | `/votes?username=` | Remove all of a user's votes |
+| `DELETE` | `/votes?username=` 🔑 | Remove all of a user's votes |
 | `GET` | `/votes/clip/:clipId` | Vote summary for a clip |
 | `GET` | `/votes/clip/:clipId/user/:username` | One user's votes on a clip |
 | `GET` | `/votes/stats` | Global stats |
 
-All `DELETE` routes are unauthenticated in the app itself — in production
-they're gated by infra-level auth in front of the API, not app code.
+🔑 = requires an `X-Api-Key` header matching the backend's `API_KEY` env var
+(`ApiKeyGuard`, `apps/backend/src/inbound/api-key.guard.ts`). This only covers
+routes that are never called by the frontend — every route the browser hits
+directly (`POST /votes`, `POST /clips/:id/flag-irrelevant`, `POST
+/transcriptions`, `POST /issue-reports`) stays open, since the SPA calls the
+API straight from the browser with no secret-holding backend-for-frontend to
+put a key behind. `scripts/transcribe.py`, `scripts/migrate_gemini_transcriptions.py`,
+and `scripts/post_tar_index_fast.py` send this key via `--api-key`/
+`--dest-api-key` (default `$CATVOICE_API_KEY`) on the 🔑 routes they call.
 
 ## Deployment
 

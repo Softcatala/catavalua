@@ -23,6 +23,7 @@ Usage:
 """
 import argparse
 import logging
+import os
 
 import requests
 
@@ -30,6 +31,18 @@ log = logging.getLogger("migrate")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 PAGE_LIMIT = 100
+
+# Set from --dest-api-key/$CATVOICE_API_KEY in main(). Sent on every POST to
+# --dest-api — harmless on unprotected routes, required for push_clip/
+# push_tar_index (gated by ApiKeyGuard on the destination backend).
+DEST_API_KEY: str | None = None
+
+
+def _post_headers() -> dict:
+    headers = {}
+    if DEST_API_KEY:
+        headers["X-Api-Key"] = DEST_API_KEY
+    return headers
 
 
 def fetch_all_clips(api_url: str) -> list[dict]:
@@ -58,6 +71,7 @@ def fetch_gemini_transcriptions(api_url: str, clip_id: str) -> list[dict]:
 def push_clip(api_url: str, clip: dict) -> None:
     r = requests.post(
         f"{api_url}/clips",
+        headers=_post_headers(),
         json={
             "clipId": clip["clipId"],
             "sourceId": clip.get("sourceId"),
@@ -81,6 +95,7 @@ def push_clip(api_url: str, clip: dict) -> None:
 def push_tar_index(api_url: str, clip_id: str, tar_file: int, tar_offset: int, tar_size: int) -> None:
     r = requests.post(
         f"{api_url}/clips/{clip_id}/tar-index",
+        headers=_post_headers(),
         json={"tarFile": tar_file, "tarOffset": tar_offset, "tarSize": tar_size},
         timeout=30,
     )
@@ -99,11 +114,18 @@ def main():
     parser = argparse.ArgumentParser(description="Migrate clips + Gemini transcriptions between CatVoice backends")
     parser.add_argument("--source-api", required=True)
     parser.add_argument("--dest-api", required=True)
+    parser.add_argument(
+        "--dest-api-key", default=os.environ.get("CATVOICE_API_KEY"),
+        help="X-Api-Key for --dest-api's pipeline-only routes. Defaults to $CATVOICE_API_KEY."
+    )
     parser.add_argument("--dry-run", action="store_true", help="Log what would happen without writing to --dest-api")
     args = parser.parse_args()
 
     source = args.source_api.rstrip("/")
     dest = args.dest_api.rstrip("/")
+
+    global DEST_API_KEY
+    DEST_API_KEY = args.dest_api_key
 
     log.info("Fetching clip list from %s…", source)
     clips = fetch_all_clips(source)

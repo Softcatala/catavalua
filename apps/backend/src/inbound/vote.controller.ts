@@ -1,5 +1,6 @@
-import { Controller, Post, Delete, Get, Body, Query, Param } from '@nestjs/common';
+import { Controller, Post, Delete, Get, Body, Query, Param, UseGuards } from '@nestjs/common';
 import { VoteService } from '../service/vote.service';
+import { ApiKeyGuard } from './api-key.guard';
 import { IsString, IsNotEmpty, IsNumber, IsOptional, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -20,6 +21,7 @@ export class VoteController {
     return this.service.cast(dto);
   }
 
+  @UseGuards(ApiKeyGuard)
   @Delete()
   async removeByUser(@Query('username') username: string) {
     if (!username) return { removed: 0 };

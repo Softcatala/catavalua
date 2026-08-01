@@ -24,6 +24,7 @@ doesn't exist or is stale.
 """
 import argparse
 import json
+import os
 import sys
 import time
 import urllib.request
@@ -33,16 +34,19 @@ from pathlib import Path
 INDEX_FILE = Path(__file__).parent.parent / "data" / "tar_index.json"
 
 
-def post_one(api_url: str, clip_id: str, entry: dict) -> str:
+def post_one(api_url: str, clip_id: str, entry: dict, api_key: str | None) -> str:
     payload = json.dumps({
         "tarFile": entry["tar_file"],
         "tarOffset": entry["tar_offset"],
         "tarSize": entry["tar_size"],
     }).encode()
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["X-Api-Key"] = api_key
     req = urllib.request.Request(
         f"{api_url}/clips/{clip_id}/tar-index",
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     try:
@@ -56,6 +60,10 @@ def post_one(api_url: str, clip_id: str, entry: dict) -> str:
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--api-url", required=True)
+    parser.add_argument(
+        "--api-key", default=os.environ.get("CATVOICE_API_KEY"),
+        help="X-Api-Key for POST /clips/:id/tar-index (gated by ApiKeyGuard). Defaults to $CATVOICE_API_KEY."
+    )
     parser.add_argument("--concurrency", type=int, default=30)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
@@ -73,7 +81,7 @@ def main():
     done = ok = errors = 0
     start = time.time()
     with ThreadPoolExecutor(max_workers=args.concurrency) as pool:
-        futures = {pool.submit(post_one, api_url, cid, entry): cid for cid, entry in index.items()}
+        futures = {pool.submit(post_one, api_url, cid, entry, args.api_key): cid for cid, entry in index.items()}
         for fut in as_completed(futures):
             result = fut.result()
             done += 1

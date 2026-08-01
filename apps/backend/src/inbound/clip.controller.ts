@@ -9,9 +9,11 @@ import {
   ParseIntPipe,
   DefaultValuePipe,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { ClipService } from '../service/clip.service';
 import { TranscriptionService } from '../service/transcription.service';
+import { ApiKeyGuard } from './api-key.guard';
 import { IsString, IsOptional, IsNumber, IsNotEmpty } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -63,11 +65,13 @@ export class ClipController {
     return this.transcriptionService.findByClip(id);
   }
 
+  @UseGuards(ApiKeyGuard)
   @Post()
   async upsert(@Body() dto: UpsertClipDto) {
     return this.clipService.upsert(dto as any);
   }
 
+  @UseGuards(ApiKeyGuard)
   @Post(':id/tar-index')
   async updateTarIndex(@Param('id') id: string, @Body() dto: UpdateTarIndexDto) {
     await this.clipService.updateTarIndex(id, dto.tarFile, dto.tarOffset, dto.tarSize);
@@ -81,7 +85,7 @@ export class ClipController {
     return { ok: true };
   }
 
-  // Gated at the Traefik layer (scauth) — not publicly reachable unauthenticated.
+  @UseGuards(ApiKeyGuard)
   @Delete(':id')
   async remove(@Param('id') id: string) {
     await this.clipService.remove(id);
