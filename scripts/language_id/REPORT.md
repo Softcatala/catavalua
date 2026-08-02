@@ -191,6 +191,58 @@ overfitting. This is a good sign that the 181-clip ground truth is
 representative of the wider dataset and that the thresholds tuned against
 it generalize to unseen clips, at least at this sample size.
 
+### Manual review of all 59 flagged clips (`review_ui.py`)
+
+`ground_truth.tsv` measures false-positive *recall* (of all real Catalan
+clips, how many get wrongly flagged). It can't directly measure the
+auto-hide tier's real-world *precision* (of clips that actually get
+flagged, how many are wrongly flagged), because the 300-clip detect run's
+flagged subset wasn't part of the labeled ground truth. So every one of the
+59 clips `detect_language.py --n 300` flagged (tier 1 or 2) was reviewed by
+ear (`review_ui.py`) — a hand-labeled correct/false-positive verdict on
+exactly the clips the two-tier rule would actually act on.
+
+Result: **8/59 false positives** (51 correct). Broken down by tier:
+
+| tier | correct | false positive | precision |
+|---|---|---|---|
+| 2 (auto-hide) | 19 | 1 | **95.0%** (19/20) |
+| 1 (single vote) | 32 | 7 | 82.1% (32/39) |
+
+The single tier-2 false positive (`3c8261fd`, 4.8s — *"si la senyora
+martínez de senyor fernàndez"*) is a genuinely hard case rather than random
+noise: the clip is dominated by Spanish-origin surnames inside a Catalan
+sentence, and it's short — consistent with the duration finding above. This
+95% tier-2 precision is a *complementary* measurement to the ground truth's
+0/94 (0%, ≤~3% upper bound) false-positive *rate* — different statistic,
+same conclusion: the auto-hide tier is strong but not literally perfect,
+which is exactly why votes (reversible, human-confirmable) were chosen over
+a hard delete.
+
+Breaking the tier-1 false positives down by which model triggered them
+(the other model stayed above the loose threshold) surfaces a real but
+thin signal:
+
+| trigger | correct | false positive | precision | n |
+|---|---|---|---|---|
+| both cross loose (incl. all tier-2) | 26 | 1 | 96.3% | 27 |
+| VoxLingua alone | 5 | 2 | 71.4% | 7 |
+| MMS alone | 20 | 5 | 80.0% | 25 |
+
+MMS's solo flags look more trustworthy than VoxLingua's (80% vs. 71%), and
+VoxLingua's two solo misses — like its one miss in the original ground
+truth — skewed toward a longer clip (16s) that MMS correctly leaned Catalan
+on. But `vox_only` is only 7 clips; one flipped verdict swings that
+precision figure by ~14 points, so this doesn't clear the bar for adding
+per-model thresholds or weighting one model over the other yet. What the
+data supports clearly is something the two-tier rule already captures
+structurally: **agreement between the two models is a far stronger signal
+than either model's solo opinion** (96% vs. 71-80%) — that gap is bigger
+and better-evidenced than any asymmetry between the models themselves.
+Revisiting per-model weighting would need materially more `vox_only`/
+`mms_only` examples (20-30+ each) before it's a data-backed decision rather
+than a guess dressed up as one.
+
 ## Open items / next steps
 
 - **Production was not covered by the ground truth** — no SSH/DB access
@@ -207,6 +259,11 @@ it generalize to unseen clips, at least at this sample size.
 - Consider special-casing clips under ~5-10s given the duration finding —
   e.g. requiring an even stricter threshold, or skipping automated flagging
   entirely, for the shortest clips.
+- **Per-model weighting/thresholds deliberately not adopted yet** — the
+  `vox_only`/`mms_only` precision gap (71% vs. 80%) is suggestive but only
+  7 and 25 samples respectively. Keep running `detect_language.py` +
+  `review_ui.py` on fresh batches to build up enough `vox_only`/`mms_only`
+  examples (20-30+ each) before deciding whether that gap is real.
 
 ## Files in this directory
 
@@ -215,7 +272,7 @@ it generalize to unseen clips, at least at this sample size.
 | `REPORT.md` | yes | this document |
 | `ground_truth.tsv` | yes | 182 hand-labeled clips |
 | `model_predictions.json` | yes | cached raw model outputs for `ground_truth.tsv` (small, reproducible evidence) |
-| `detect_sample.tsv` | yes | fresh 300-clip holdout run, for the representativeness check |
+| `detect_sample.tsv` | yes | fresh 300-clip holdout run + manual review verdicts on all 59 flagged clips |
 | `paths.py` | yes | shared path/threshold constants |
 | `hf_audio.py` | yes | shared HTTP-range audio fetch |
 | `lid_models.py` | yes | shared model-inference code for both candidate models |
@@ -223,5 +280,6 @@ it generalize to unseen clips, at least at this sample size.
 | `label_ui.py` | yes | local web UI for hand-labeling |
 | `score_models.py` | yes | scores both models against `ground_truth.tsv`, prints the tables above |
 | `detect_language.py` | yes | detect (TSV, no votes) / `--apply` (casts votes) against a live backend |
+| `review_ui.py` | yes | local web UI for hand-reviewing flagged (tier ≥1) clips in `detect_sample.tsv` for false positives |
 | `../../data/language_id/audio/` | **no** (gitignored) | downloaded clip audio — regenerable from `clip_id` via the HF tar index |
 | `../../data/language_id/.model_cache/` | **no** (gitignored) | downloaded model weights — regenerable from HuggingFace |

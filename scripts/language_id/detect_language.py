@@ -48,7 +48,10 @@ from lid_models import run_voxlingua, run_mms  # noqa: E402
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-8s %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("detect_language")
 
-FIELDNAMES = ["clip_id", "duration", "yt_url", "candidate_1", "p_ca_voxlingua", "p_ca_mms", "tier"]
+FIELDNAMES = [
+    "clip_id", "duration", "yt_url", "candidate_1", "p_ca_voxlingua", "p_ca_mms", "tier",
+    "review_verdict", "review_notes",
+]
 
 VOTE_USERNAME_VOXLINGUA = "lid-voxlingua"
 VOTE_USERNAME_MMS = "lid-mms"
@@ -127,6 +130,8 @@ def run_detection(rows: list[dict]) -> list[dict]:
             "p_ca_voxlingua": round(p_v, 4),
             "p_ca_mms": round(p_m, 4),
             "tier": tier_for(p_v, p_m),
+            "review_verdict": "",
+            "review_notes": "",
         })
     return out
 
