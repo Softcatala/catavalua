@@ -18,7 +18,7 @@ services:
       - "traefik.http.routers.catvoice-backend.entrypoints=websecure"
       - "traefik.http.routers.catvoice-backend.tls=true"
       - "traefik.http.routers.catvoice-backend.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.catvoice-backend.middlewares=compression@file"
+      - "traefik.http.routers.catvoice-backend.middlewares=internal-only@file,compression@file"
       - "traefik.http.services.catvoice-backend.loadbalancer.server.port=3000"
       - "traefik.docker.network=traefik"
     healthcheck:
@@ -48,7 +48,7 @@ services:
       - "traefik.http.routers.catvoice-frontend.entrypoints=websecure"
       - "traefik.http.routers.catvoice-frontend.tls=true"
       - "traefik.http.routers.catvoice-frontend.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.catvoice-frontend.middlewares=security-headers@file,compression@file"
+      - "traefik.http.routers.catvoice-frontend.middlewares=internal-only@file,security-headers@file,compression@file"
       - "traefik.http.services.catvoice-frontend.loadbalancer.server.port=8080"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/health"]
