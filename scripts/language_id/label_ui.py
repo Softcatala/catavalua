@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
 Tiny local web UI for hand-labeling the LID ground-truth sample produced by
-scripts/build_lid_ground_truth.py.
+build_ground_truth.py.
 
-No database, no build step, stdlib only. Reads/writes
-scripts/reference/lid_ground_truth.tsv directly — every save rewrites the
-TSV in place, so progress is never lost and you can stop/resume anytime.
-Audio stays under data/lid_ground_truth/audio/ (gitignored).
+No database, no build step, stdlib only. Reads/writes ground_truth.tsv
+directly — every save rewrites the TSV in place, so progress is never lost
+and you can stop/resume anytime. Audio stays under data/language_id/audio/
+(gitignored).
 
 Usage:
-  python scripts/label_lid_ui.py                 # http://127.0.0.1:8787
-  python scripts/label_lid_ui.py --port 9000
+  python scripts/language_id/label_ui.py                 # http://127.0.0.1:8787
+  python scripts/language_id/label_ui.py --port 9000
 
 Binds to 127.0.0.1 by default (no auth) — reach it over SSH port forwarding:
   ssh -L 8787:localhost:8787 <host>
@@ -19,12 +19,14 @@ then open http://localhost:8787 locally.
 import argparse
 import csv
 import json
+import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
-AUDIO_DIR = Path(__file__).parent.parent / "data" / "lid_ground_truth" / "audio"
-SAMPLE_TSV = Path(__file__).parent / "reference" / "lid_ground_truth.tsv"
+sys.path.insert(0, str(Path(__file__).parent))
+from paths import AUDIO_DIR, GROUND_TRUTH_TSV as SAMPLE_TSV  # noqa: E402
+
 FIELDNAMES = ["clip_id", "duration", "yt_url", "candidate_1", "ground_truth_lang", "notes", "source"]
 
 
@@ -255,7 +257,7 @@ def main():
     args = parser.parse_args()
 
     if not SAMPLE_TSV.exists():
-        raise SystemExit(f"{SAMPLE_TSV} not found — run scripts/build_lid_ground_truth.py first")
+        raise SystemExit(f"{SAMPLE_TSV} not found — run scripts/language_id/build_ground_truth.py first")
 
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"Labeling UI at http://{args.host}:{args.port}  (Ctrl+C to stop)")
