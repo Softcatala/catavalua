@@ -319,6 +319,29 @@ export function EvaluatePage({ username }: Props) {
   const originalText = bestTx?.text ?? state?.clip.candidate1 ?? state?.clip.candidate2 ?? '';
   const activeText = editMode ? editText : originalText;
 
+  // Vote button labels default to generic Correct/Incorrect, but restate the
+  // specific value being confirmed for dimensions where a bare "Correct" is
+  // easy to click through without registering what it's agreeing to.
+  const dialectValueLabel = dialectResolved.value ? translateValue(t, 'dialect', dialectResolved.value) : '';
+  const correctLabel =
+    dimension === 'dialect' && dialectResolved.value
+      ? t('evaluate.dialectCorrect', { value: dialectValueLabel })
+      : dimension === 'gender' && genderResolved.value === 'male'
+      ? t('evaluate.genderCorrectMale')
+      : dimension === 'gender' && genderResolved.value === 'female'
+      ? t('evaluate.genderCorrectFemale')
+      : dimension === 'transcription' && editMode
+      ? t('evaluate.saveAsCorrect')
+      : t('evaluate.correct');
+  const incorrectLabel =
+    dimension === 'dialect' && dialectResolved.value
+      ? t('evaluate.dialectIncorrect', { value: dialectValueLabel })
+      : dimension === 'gender' && genderResolved.value === 'male'
+      ? t('evaluate.genderIncorrectFemale')
+      : dimension === 'gender' && genderResolved.value === 'female'
+      ? t('evaluate.genderIncorrectMale')
+      : t('evaluate.incorrect');
+
   const copyClipUrl = (clipId: string) => {
     navigator.clipboard.writeText(`${window.location.origin}/clip/${clipId}`);
     setCopied(true);
@@ -642,16 +665,16 @@ export function EvaluatePage({ username }: Props) {
               <button
                 onClick={() => vote(1)}
                 disabled={voting || (dimension === 'transcription' && !activeText.trim()) || (dimension === 'gender' && !genderResolved.value)}
-                className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+                className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white font-semibold py-3 px-2 rounded-xl transition flex items-center justify-center gap-2 text-sm sm:text-base leading-tight text-center"
               >
-                {t('evaluate.correct')}
+                {correctLabel}
               </button>
               <button
                 onClick={() => vote(-1)}
                 disabled={voting || (dimension === 'transcription' && !activeText.trim()) || (dimension === 'gender' && !genderResolved.value)}
-                className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+                className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white font-semibold py-3 px-2 rounded-xl transition flex items-center justify-center gap-2 text-sm sm:text-base leading-tight text-center"
               >
-                {t('evaluate.incorrect')}
+                {incorrectLabel}
               </button>
               <button
                 onClick={skip}
