@@ -285,18 +285,16 @@ Consistent with the 300-clip representativeness check throughout the run
 last). Output lives at `data/language_id/full_detect.tsv` (gitignored,
 ~51MB — too large to track like the curated `ground_truth.tsv`).
 
-### Votes cast against the local dev container
+### Votes cast against the local dev environment
 
 `detect_language.py --apply` gained an `--input` flag so it can act on
 `full_detect.tsv` instead of just `detect_sample.tsv`. Dry-run confirmed
 the expected job size: 20,070×2 + 30,689×1 = **70,829 vote requests**
 (`POST /clips/:id/flag-irrelevant`, reason `not_catalan`).
 
-Cast against the local dev environment only (`http://localhost:3000`) —
-production was deliberately excluded, consistent with every other
-production-touching decision in this investigation. Ran at
-concurrency=100 while watching the backend's CPU usage: it stayed under
-1% throughout, negligible load.
+Cast against the local dev environment first (`http://localhost:3000`),
+deliberately before production, at concurrency=100 while watching the
+backend's CPU usage: it stayed under 1% throughout, negligible load.
 
 **Result**: all 70,829/70,829 votes cast successfully, **zero errors**, in
 ~8m47s (~134 votes/sec). Spot-checked against the live API afterward: a
@@ -310,17 +308,33 @@ run, plus the 17 pre-existing relevance-flagged clips from before this
 investigation (folded into `ground_truth.tsv` and correctly excluded from
 the full run as a separate, non-overlapping set) = 50,776.
 
-Production was not touched — this apply run targeted the local dev
-environment only.
+### Votes cast against production
+
+Same 70,829-vote job, run against production afterward at a more
+conservative concurrency=20, with the backend's `/metrics` endpoint
+polled throughout (HTTP error rate, event-loop lag, memory) against a
+pre-run baseline, with the process ready to be killed immediately on any
+sign of degradation.
+
+**Result**: all 70,829/70,829 votes cast, **zero errors**, zero 5xx
+responses across the entire run. Event-loop lag and memory both ended
+*at or below* their pre-run baseline (memory: 146.5MB baseline → peaked
+~281MB mid-run → 139.7MB after — a transient rise from handling the
+extra load, not a leak). `flaggedIrrelevant` counter landed on exactly
+70,829, and the same tier-2/tier-1 spot-check as the local run confirmed
+identical, correct behavior (auto-hidden vs. single-vote-visible).
+
+Both environments are now fully up to date with the two-tier detection
+results from this investigation.
 
 ## Open items / next steps
 
-- **Production was not covered by the ground truth or the apply run** —
-  its API can't filter by `isRelevant` server-side, so pulling its
-  already-flagged clips would mean a slow full-pagination scan. If
-  English/other-language clips specifically from production ever need
-  adding to `ground_truth.tsv`, or votes need casting there, that's a
-  separate decision with its own review before acting.
+- **Production was not covered by the ground truth** — its API can't
+  filter by `isRelevant` server-side, so pulling its already-flagged
+  clips would mean a slow full-pagination scan. If English/other-language
+  clips specifically from production ever need adding to
+  `ground_truth.tsv`, that's a separate decision with its own review
+  before acting.
 - Consider expanding `ground_truth.tsv` (more labeled clips) to tighten the
   ~3% false-positive upper-bound confidence interval before trusting this
   at full dataset scale.
