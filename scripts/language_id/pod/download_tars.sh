@@ -21,7 +21,7 @@ fetch_one() {
     local dest="$DEST_DIR/audio-$n.tar"
 
     local remote_size
-    remote_size=$(curl -sI "$url" | grep -i '^content-length:' | tr -d '\r' | awk '{print $2}')
+    remote_size=$(curl -sIL "$url" | grep -i '^content-length:' | tail -1 | tr -d '\r' | awk '{print $2}')
 
     if [[ -f "$dest" && -n "$remote_size" ]]; then
         local local_size

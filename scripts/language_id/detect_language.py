@@ -226,10 +226,11 @@ def flag_irrelevant(api_url: str, clip_id: str, username: str) -> str:
 
 
 def cmd_apply(args):
-    if not DETECT_SAMPLE_TSV.exists():
-        log.error("run detect_language.py without --apply first to produce %s", DETECT_SAMPLE_TSV)
+    input_path = Path(args.input) if args.input else DETECT_SAMPLE_TSV
+    if not input_path.exists():
+        log.error("%s not found — run detect_language.py without --apply first, or pass --input", input_path)
         return
-    rows = list(csv.DictReader(DETECT_SAMPLE_TSV.open(newline="", encoding="utf-8"), delimiter="\t"))
+    rows = list(csv.DictReader(input_path.open(newline="", encoding="utf-8"), delimiter="\t"))
     tier2 = [r for r in rows if int(r["tier"]) == 2]
     tier1 = [r for r in rows if int(r["tier"]) == 1]
     log.info("%d clips at tier 2 (2 votes each), %d at tier 1 (1 vote each)", len(tier2), len(tier1))
@@ -269,7 +270,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--n", type=int, default=300, help="fresh sample size for detect mode (default 300)")
     parser.add_argument("--seed", type=int, default=1, help="random seed (default 1 — different from build_ground_truth.py's 42, so this is a distinct sample)")
-    parser.add_argument("--apply", action="store_true", help="cast votes from detect_sample.tsv instead of detecting")
+    parser.add_argument("--apply", action="store_true", help="cast votes from detect_sample.tsv (or --input) instead of detecting")
+    parser.add_argument("--input", default=None, help="with --apply, TSV to read tier/clip_id from (default detect_sample.tsv)")
     parser.add_argument("--api-url", default="http://localhost:3000")
     parser.add_argument("--dry-run", action="store_true", help="with --apply, log what would happen without casting votes")
     parser.add_argument("--concurrency", type=int, default=10, help="parallel requests for --apply (default 10)")

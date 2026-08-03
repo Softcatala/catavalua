@@ -80,14 +80,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--tar-dir", required=True, help="directory with locally-downloaded audio-N.tar files")
     parser.add_argument("--out", required=True, help="output TSV path (appended to incrementally, resumable)")
-    parser.add_argument("--device", default="cuda", help="cuda or cpu (default cuda)")
+    parser.add_argument("--device", default="cuda:0", help="cuda:0 or cpu (default cuda:0)")
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--limit", type=int, default=0, help="only process the first N remaining clips (testing)")
     parser.add_argument("--cache-dir", default="/workspace/.model_cache")
     args = parser.parse_args()
 
     import torch
-    if args.device == "cuda" and not torch.cuda.is_available():
+    if args.device.startswith("cuda") and not torch.cuda.is_available():
         log.warning("CUDA requested but not available — falling back to CPU")
         args.device = "cpu"
 

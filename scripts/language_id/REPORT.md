@@ -243,6 +243,78 @@ Revisiting per-model weighting would need materially more `vox_only`/
 `mms_only` examples (20-30+ each) before it's a data-backed decision rather
 than a guess dressed up as one.
 
+### Full-dataset run (RunPod GPU pod)
+
+Scoring the remaining 231,202 clips (everything not already in
+`ground_truth.tsv`/`detect_sample.tsv`) locally on CPU would have taken
+~30 days — see `pod/README.md`. Instead, ran on a rented RunPod A40 GPU pod
+(secure cloud, EU-SE-1, $0.44/hr):
+
+- Downloaded all 51 HF tar files locally to the pod (~100GB, resumable —
+  `pod/download_tars.sh`) so audio reads are a local file seek instead of
+  231k individual HTTP requests.
+- Batched CUDA inference (`pod/batch_models.py`), correctness-validated
+  against the cached unbatched CPU predictions before ever touching the
+  pod (`pod/validate_batching.py`): mms-lid-126 matched exactly (0.0
+  diff), VoxLingua-ECAPA had negligible float noise (max diff 0.0165)
+  with zero decision disagreements at either threshold, on 40
+  ground-truth clips.
+- `pod/run_full_detection.py` is idempotent and interruptible by design —
+  incremental writes flushed per batch, skips already-processed clips on
+  restart — and wrote its output to the pod's persistent `/workspace`
+  volume specifically (not the ephemeral container disk the tar files
+  lived on), so an unplanned pod restart mid-run would have lost at most
+  the downloaded tars (cheap to redo) and never the accumulating results.
+
+**Result**: sustained **9.9 clips/sec**, all 231,202 clips scored in
+**~6.5 hours** (**~$3.11** total pod cost, including setup/download time).
+Output integrity fully verified before trusting it: exact row count, no
+malformed rows, all `tier` values in {0,1,2}, all `p_ca_*` values in
+[0,1], no duplicate `clip_id`s, and an MD5 checksum match between the
+pod's copy and the one pulled back locally. 231,202 + 482
+(ground-truth/reviewed clips) = 231,684 — the complete dataset, every
+clip accounted for exactly once.
+
+| tier | count | % |
+|---|---|---|
+| 2 (auto-hide) | 20,070 | 8.68% |
+| 1 (single vote) | 30,689 | 13.27% |
+| 0 (nothing) | 180,443 | 78.05% |
+
+Consistent with the 300-clip representativeness check throughout the run
+(~8-9% / ~13% split held steady from the first progress checkpoint to the
+last). Output lives at `data/language_id/full_detect.tsv` (gitignored,
+~51MB — too large to track like the curated `ground_truth.tsv`).
+
+### Votes cast against the local dev container
+
+`detect_language.py --apply` gained an `--input` flag so it can act on
+`full_detect.tsv` instead of just `detect_sample.tsv`. Dry-run confirmed
+the expected job size: 20,070×2 + 30,689×1 = **70,829 vote requests**
+(`POST /clips/:id/flag-irrelevant`, reason `not_catalan`).
+
+Cast against the local dev container only (`http://localhost:3000`) —
+production was deliberately excluded, consistent with every other
+production-touching decision in this investigation (no verified access,
+no rush to act on it without separately deciding how). Ran at
+concurrency=100 while watching `docker stats catvoice-backend`: CPU
+stayed under 1% throughout, negligible load on the container.
+
+**Result**: all 70,829/70,829 votes cast successfully, **zero errors**, in
+~8m47s (~134 votes/sec). Spot-checked against the live API afterward: a
+sampled tier-2 clip shows `isRelevant: 0` with netVotes -2 from both model
+identities (auto-hidden, as designed); a sampled tier-1 clip shows
+`isRelevant: 1` (still fully visible to evaluators) with netVotes -1 from
+the single shared identity — needs one more flag, model or human, to
+disappear. `GET /votes/stats` reports `flaggedIrrelevant: 50,776`, which
+reconciles exactly: 20,070 + 30,689 = 50,759 newly-flagged clips from this
+run, plus the 17 pre-existing relevance-flagged clips from before this
+investigation (folded into `ground_truth.tsv` and correctly excluded from
+the full run as a separate, non-overlapping set) = 50,776.
+
+Production was not touched — this apply run targeted `http://localhost:3000`
+(the local dev container) only.
+
 ## Open items / next steps
 
 - **Production was not covered by the ground truth** — no SSH/DB access
@@ -281,5 +353,7 @@ than a guess dressed up as one.
 | `score_models.py` | yes | scores both models against `ground_truth.tsv`, prints the tables above |
 | `detect_language.py` | yes | detect (TSV, no votes) / `--apply` (casts votes) against a live backend |
 | `review_ui.py` | yes | local web UI for hand-reviewing flagged (tier ≥1) clips in `detect_sample.tsv` for false positives |
+| `pod/` | yes | RunPod GPU deployment scripts for the full-dataset run — see `pod/README.md` |
 | `../../data/language_id/audio/` | **no** (gitignored) | downloaded clip audio — regenerable from `clip_id` via the HF tar index |
 | `../../data/language_id/.model_cache/` | **no** (gitignored) | downloaded model weights — regenerable from HuggingFace |
+| `../../data/language_id/full_detect.tsv` | **no** (gitignored, ~51MB) | all 231,202 non-ground-truth clips scored — output of the full pod run |
