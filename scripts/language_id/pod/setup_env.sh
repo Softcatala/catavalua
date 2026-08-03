@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# One-time environment setup on the pod. Assumes the "Runpod Pytorch 2.8.0"
-# base image (torch + CUDA already present) — installs only what's missing.
+# One-time environment setup on the rented GPU machine. Assumes a
+# PyTorch + CUDA base image (torch + CUDA already present) — installs
+# only what's missing.
 set -euo pipefail
 
 python3 -m venv /root/venv

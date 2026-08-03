@@ -60,14 +60,13 @@ top-1-argmax rule.
 - `build_ground_truth.py` pulls a reproducible random sample from the
   dataset (seed 42) and downloads each clip's audio via the same
   HTTP-range tar fetch as `scripts/transcribe.py`.
-- 82 more clips were added from the local dev backend's already
+- 82 more clips were added from the local dev environment's already
   auto-flagged/manually-flagged-irrelevant set (`source_id=flagged_irrelevant_local`
-  in the TSV) — pulled via a clean SQLite online-backup snapshot of the
-  live Docker volume (`scripts/dev-db-snapshot.sh`), never touching the
-  running containers. Production was **not** included: no SSH/DB access
-  to that host exists, and its API has no server-side filter for
+  in the TSV) — pulled via a clean, read-only database snapshot
+  (`scripts/dev-db-snapshot.sh`), never touching the running environment.
+  Production was **not** included: its API has no server-side filter for
   `isRelevant`, so a full scan would mean ~2,317 slow paginated requests
-  against a shared, previously-unstable box — not worth the load for this.
+  against a shared box — not worth the load for this.
 - `label_ui.py` is a tiny stdlib-only local web UI (audio player + one-click
   language buttons + notes, reachable over SSH port forwarding) — no
   database, writes straight back into the TSV so labeling is resumable.
@@ -243,31 +242,31 @@ Revisiting per-model weighting would need materially more `vox_only`/
 `mms_only` examples (20-30+ each) before it's a data-backed decision rather
 than a guess dressed up as one.
 
-### Full-dataset run (RunPod GPU pod)
+### Full-dataset run (rented GPU machine)
 
 Scoring the remaining 231,202 clips (everything not already in
 `ground_truth.tsv`/`detect_sample.tsv`) locally on CPU would have taken
-~30 days — see `pod/README.md`. Instead, ran on a rented RunPod A40 GPU pod
-(secure cloud, EU-SE-1, $0.44/hr):
+~30 days — see `pod/README.md`. Instead, ran on a rented GPU machine (a
+single 48GB-VRAM GPU, ~$0.44/hr):
 
-- Downloaded all 51 HF tar files locally to the pod (~100GB, resumable —
-  `pod/download_tars.sh`) so audio reads are a local file seek instead of
-  231k individual HTTP requests.
+- Downloaded all 51 HF tar files locally to the machine (~100GB, resumable
+  — `pod/download_tars.sh`) so audio reads are a local file seek instead
+  of 231k individual HTTP requests.
 - Batched CUDA inference (`pod/batch_models.py`), correctness-validated
   against the cached unbatched CPU predictions before ever touching the
-  pod (`pod/validate_batching.py`): mms-lid-126 matched exactly (0.0
-  diff), VoxLingua-ECAPA had negligible float noise (max diff 0.0165)
-  with zero decision disagreements at either threshold, on 40
-  ground-truth clips.
+  rented machine (`pod/validate_batching.py`): mms-lid-126 matched
+  exactly (0.0 diff), VoxLingua-ECAPA had negligible float noise (max
+  diff 0.0165) with zero decision disagreements at either threshold, on
+  40 ground-truth clips.
 - `pod/run_full_detection.py` is idempotent and interruptible by design —
   incremental writes flushed per batch, skips already-processed clips on
-  restart — and wrote its output to the pod's persistent `/workspace`
-  volume specifically (not the ephemeral container disk the tar files
-  lived on), so an unplanned pod restart mid-run would have lost at most
-  the downloaded tars (cheap to redo) and never the accumulating results.
+  restart — and wrote its output to the machine's persistent storage
+  specifically (not the ephemeral local disk the tar files lived on), so
+  an unplanned restart mid-run would have lost at most the downloaded
+  tars (cheap to redo) and never the accumulating results.
 
 **Result**: sustained **9.9 clips/sec**, all 231,202 clips scored in
-**~6.5 hours** (**~$3.11** total pod cost, including setup/download time).
+**~6.5 hours** (**~$3.11** total machine cost, including setup/download time).
 Output integrity fully verified before trusting it: exact row count, no
 malformed rows, all `tier` values in {0,1,2}, all `p_ca_*` values in
 [0,1], no duplicate `clip_id`s, and an MD5 checksum match between the
@@ -293,12 +292,11 @@ last). Output lives at `data/language_id/full_detect.tsv` (gitignored,
 the expected job size: 20,070×2 + 30,689×1 = **70,829 vote requests**
 (`POST /clips/:id/flag-irrelevant`, reason `not_catalan`).
 
-Cast against the local dev container only (`http://localhost:3000`) —
+Cast against the local dev environment only (`http://localhost:3000`) —
 production was deliberately excluded, consistent with every other
-production-touching decision in this investigation (no verified access,
-no rush to act on it without separately deciding how). Ran at
-concurrency=100 while watching `docker stats catvoice-backend`: CPU
-stayed under 1% throughout, negligible load on the container.
+production-touching decision in this investigation. Ran at
+concurrency=100 while watching the backend's CPU usage: it stayed under
+1% throughout, negligible load.
 
 **Result**: all 70,829/70,829 votes cast successfully, **zero errors**, in
 ~8m47s (~134 votes/sec). Spot-checked against the live API afterward: a
@@ -312,19 +310,17 @@ run, plus the 17 pre-existing relevance-flagged clips from before this
 investigation (folded into `ground_truth.tsv` and correctly excluded from
 the full run as a separate, non-overlapping set) = 50,776.
 
-Production was not touched — this apply run targeted `http://localhost:3000`
-(the local dev container) only.
+Production was not touched — this apply run targeted the local dev
+environment only.
 
 ## Open items / next steps
 
-- **Production was not covered by the ground truth** — no SSH/DB access
-  exists to `catavalua.softcatala.org`, and its API can't filter by
-  `isRelevant` server-side. If English/other-language clips specifically
-  from production ever need adding to `ground_truth.tsv`, that requires
-  either DB access being granted or accepting a slow full-pagination scan.
-- **`--apply` has not been run.** `detect_language.py --apply` casts real
-  votes against a running backend using the identities above — reviewed
-  and intentionally not invoked yet.
+- **Production was not covered by the ground truth or the apply run** —
+  its API can't filter by `isRelevant` server-side, so pulling its
+  already-flagged clips would mean a slow full-pagination scan. If
+  English/other-language clips specifically from production ever need
+  adding to `ground_truth.tsv`, or votes need casting there, that's a
+  separate decision with its own review before acting.
 - Consider expanding `ground_truth.tsv` (more labeled clips) to tighten the
   ~3% false-positive upper-bound confidence interval before trusting this
   at full dataset scale.
@@ -353,7 +349,7 @@ Production was not touched — this apply run targeted `http://localhost:3000`
 | `score_models.py` | yes | scores both models against `ground_truth.tsv`, prints the tables above |
 | `detect_language.py` | yes | detect (TSV, no votes) / `--apply` (casts votes) against a live backend |
 | `review_ui.py` | yes | local web UI for hand-reviewing flagged (tier ≥1) clips in `detect_sample.tsv` for false positives |
-| `pod/` | yes | RunPod GPU deployment scripts for the full-dataset run — see `pod/README.md` |
+| `pod/` | yes | rented-GPU-machine deployment scripts for the full-dataset run — see `pod/README.md` |
 | `../../data/language_id/audio/` | **no** (gitignored) | downloaded clip audio — regenerable from `clip_id` via the HF tar index |
 | `../../data/language_id/.model_cache/` | **no** (gitignored) | downloaded model weights — regenerable from HuggingFace |
 | `../../data/language_id/full_detect.tsv` | **no** (gitignored, ~51MB) | all 231,202 non-ground-truth clips scored — output of the full pod run |

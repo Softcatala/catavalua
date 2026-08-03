@@ -9,7 +9,7 @@
 # interruption at any point.
 set -euo pipefail
 
-DEST_DIR="${1:-/workspace/tars}"
+DEST_DIR="${1:-$HOME/tars}"
 PARALLEL="${2:-4}"
 HF_BASE="https://huggingface.co/datasets/softcatala/catalan-youtube-speech/resolve/main"
 

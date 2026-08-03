@@ -13,7 +13,7 @@ where it left off. Clips already in ../ground_truth.tsv or
 — no need to re-score clips we already have a verdict for.
 
 Usage:
-  python run_full_detection.py --tar-dir /workspace/tars --out /workspace/full_detect.tsv
+  python run_full_detection.py --tar-dir ~/tars --out /path/to/persistent/storage/full_detect.tsv
   # local correctness test (no GPU, no tar files) — see validate_batching.py instead
 """
 import argparse
@@ -83,7 +83,7 @@ def main():
     parser.add_argument("--device", default="cuda:0", help="cuda:0 or cpu (default cuda:0)")
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--limit", type=int, default=0, help="only process the first N remaining clips (testing)")
-    parser.add_argument("--cache-dir", default="/workspace/.model_cache")
+    parser.add_argument("--cache-dir", default="/root/.model_cache")
     args = parser.parse_args()
 
     import torch
