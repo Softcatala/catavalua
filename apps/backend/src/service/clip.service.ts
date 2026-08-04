@@ -200,11 +200,21 @@ export class ClipService {
       }
     }
 
+    // On a net-votes tie, prefer the punctuated second-pass candidate
+    // (scripts/whisper_transcribe — issue #8) over the older, unpunctuated
+    // ones — otherwise a strict `net > bestNet` always keeps whichever
+    // transcription was inserted first (candidate_1/2, or an earlier Gemini
+    // pass), since the whisper pass is posted later with no votes yet.
     let bestTranscription: Transcription | null = null;
     let bestNet = -Infinity;
     for (const t of allTranscriptions) {
       const net = netByTarget[String(t.id)] ?? 0;
-      if (net > bestNet) {
+      const isBetter =
+        net > bestNet ||
+        (net === bestNet &&
+          t.origin === 'whisper-large-v3-turbo' &&
+          bestTranscription?.origin !== 'whisper-large-v3-turbo');
+      if (isBetter) {
         bestNet = net;
         bestTranscription = t;
       }
