@@ -8,10 +8,11 @@ every clip the language-ID pass ([`scripts/language_id/`](../language_id/))
 did NOT flag as non-Catalan, so evaluators get a punctuated option to
 compare against and vote on.
 
-This is a plan-and-tooling commit: the scripts below are ready to run, but
-no pod has been provisioned and nothing has been transcribed yet. Run
-`pilot_transcribe.py` locally first (see "Workflow" below) before spending
-anything on a rented GPU.
+**Status: done.** All 180,443 tier-0 clips were transcribed on a rented GPU
+pod and the results are live on dev, stage, and production. See "Results"
+below for the numbers, bugs hit, and cost; "Workflow" documents the steps
+that were actually run, in order, for next time this needs repeating (e.g.
+against a refreshed `full_detect.tsv`).
 
 ## Scope
 
@@ -28,6 +29,67 @@ data/language_id/full_detect.tsv: 180,443 tier-0 clips, 729.0 hours of audio
 held out during the LID investigation, never scored into `full_detect.tsv`
 — are excluded here too, consistent with how the LID vote-casting run
 itself scoped its work. ~0.2% of the dataset.)
+
+## Results (full run, 2026-08-03/04)
+
+- **Pod**: a single rented GPU machine (16GB VRAM was plenty — the model
+  needs <2GB, VRAM was never the constraint), plus a small network volume
+  for the output TSV (mirroring `scripts/language_id`'s pattern of keeping
+  results on persistent storage separate from the ephemeral tar-file
+  disk). GPU availability was tight enough at provisioning time that
+  several other GPU types/regions were tried first and failed with "no
+  instances available" before this combination worked — not a reflection
+  of that GPU being the deliberate first choice.
+- **Throughput**: steady **4.0-4.1 clips/sec** batched (batch size 16, beam
+  size 5, no VAD) — 180,443 clips in **~12.6 hours**.
+- **Cost**: **$4.01 total** ($3.70 GPU + $0.29 disk + $0.01 network volume
+  storage + negligible CPU), for the tar download + full transcription run
+  + idempotent retries. In line with the earlier estimate (~$4-9) from
+  before this was actually run.
+- **Validation before trusting the output**: exact row count (180,443,
+  matching `clips_to_transcribe.tsv` 1:1 — 0 missing, 0 unexpected extras),
+  0 duplicate `clip_id`s, 0 malformed rows, **0% blank transcriptions**,
+  and an MD5 checksum match between the pod's copy and the one pulled back
+  locally.
+- **Two real bugs the pilot didn't catch, only the full pod run did**
+  (both fixed in `whisper_engine.py`/`pod/run_full_transcription.py`,
+  before those bugs could recur): `ctranslate2.Whisper.encode()` needs a
+  `StorageView`, not a raw numpy array; and `faster_whisper.WhisperModel`
+  takes `device="cuda"` + a separate `device_index`, not PyTorch-style
+  `"cuda:0"` (the CPU-only pilot never exercised either code path).
+- **Quality, qualitatively**: consistently punctuated, and frequently
+  corrects real ASR errors in the original candidates, not just adds
+  commas — e.g. `"sis marrades mildred"` → `"6/2013"` (a decree number),
+  `"la resta de les boletes dansem"` → `"la resta dels grups polítics"`.
+
+### Backend fix: the new candidate was invisible without this
+
+Posting the transcriptions alone wasn't enough — `EvaluateController`'s
+`deduplicateTranscriptions()` and `ClipService.enrichClip()`'s
+`bestTranscription` picker both broke net-vote ties by insertion order.
+Since the new candidate is posted after (and votes 0 same as) the older
+ones, it lost every tie and was never actually shown to an evaluator or
+list view. Both now explicitly prefer `origin === 'whisper-large-v3-turbo'`
+on a tie (below the existing "2+ models agreed" bonus, above plain
+insertion order) — see
+`apps/backend/src/inbound/evaluate.controller.ts` and
+`apps/backend/src/service/clip.service.ts`. Verified live post-deploy on
+both stage and production: `GET /evaluate/clip/:clipId` returns the
+whisper candidate as `uniqueTranscriptions[0]`.
+
+### Applied to
+
+| Environment | Whisper transcriptions | Notes |
+|---|---|---|
+| local dev | 180,443 posted (2026-08-03/04) | **Wrong target initially** — the bare-host dev process was mistakenly assumed to be the self-hosted staging container; it's actually a separate process with its own SQLite file. Left as-is (not cleaned up). |
+| self-hosted staging | 180,443/180,443, 0 errors (2026-08-04) | Correct target, after rebuilding the container with the tiebreak fix. |
+| production (`catavalua.softcatala.org`) | 180,443/180,443, 0 errors (2026-08-05) | After pushing the fix through GitHub → GitLab mirror → CI/CD and confirming a healthy deploy; posted at moderate concurrency with `/metrics` (event-loop lag, memory) watched against a pre-run baseline throughout, per the same protocol `scripts/language_id/REPORT.md` used for its production vote-casting run. No degradation observed. |
+
+Same discovery also applied to `scripts/language_id`'s 70,829 LID-flag
+votes, which had the identical dev-vs-staging mixup — cast against staging
+retroactively on 2026-08-04 (`flaggedIrrelevant: 50,776`, matching the
+report's reconciliation exactly). Production already had them (see that
+report).
 
 ## Tool decisions
 
@@ -98,7 +160,7 @@ Softcatalà doesn't rely on Whisper for punctuation at all: their
 is a separate, dedicated mT5 restoration model applied as post-processing
 to already-transcribed text. That approach is cheaper but only fixes
 punctuation — it can't recover words the underlying ASR got wrong, which a
-real re-transcription pass does (the pilot run below shows a concrete
+real re-transcription pass does (see "Results" above for a concrete
 example: `"sis marrades mildred"` → `"6/2013"`, not just added commas).
 This pipeline does a real second transcription pass specifically to get
 both — punctuation *and* an actual accuracy improvement over the original
@@ -148,6 +210,10 @@ duplicates).
 
 ## Workflow
 
+Steps actually run, in order — reuse this sequence if this ever needs
+repeating (e.g. against a refreshed `full_detect.tsv` after a fresh LID
+pass):
+
 ```bash
 # 1. Build the clip list (tier-0 only) — local, no GPU, seconds to run.
 python scripts/whisper_transcribe/select_clips.py
@@ -160,9 +226,10 @@ python scripts/whisper_transcribe/pilot_transcribe.py --n 15
 pip install "crisperwhisper[ct2]"
 python scripts/whisper_transcribe/pilot_compare_crisperwhisper.py --n 15
 
-# 3. Only once the pilot looks right — provision a pod (48GB VRAM is
-#    comfortably enough; the model itself is <2GB) and mirror
-#    scripts/language_id/pod/README.md's sequence:
+# 3. Only once the pilot looks right — provision a pod (16GB VRAM was
+#    plenty in practice — the model itself is <2GB; don't over-provision
+#    on GPU memory, availability is the real constraint, see "Results"
+#    above) and mirror scripts/language_id/pod/README.md's sequence:
 rsync -av scripts/whisper_transcribe/ gpu-machine:~/catvoice/scripts/whisper_transcribe/
 #    (also needs data/clips.tsv, data/tar_index.json, data/language_id/full_detect.tsv,
 #     and scripts/whisper_transcribe/paths.py's REPO_ROOT-relative layout preserved)
@@ -183,17 +250,26 @@ disown
 #    review a sample of it before posting anything.
 
 # 5. Post to a running backend (dry run by default, --apply to actually write):
-python scripts/whisper_transcribe/post_transcriptions.py --api-url http://localhost:3000
-python scripts/whisper_transcribe/post_transcriptions.py --api-url http://localhost:3000 --apply
+python scripts/whisper_transcribe/post_transcriptions.py --api-url <env-url>
+python scripts/whisper_transcribe/post_transcriptions.py --api-url <env-url> --apply
 
 # 6. Terminate the pod once the output is safely copied back.
 ```
 
+**Double-check which environment `<env-url>` actually points at** before
+running with `--apply` — a bare-host dev process and a self-hosted staging
+container can each answer on their own port with no error to signal a
+mismatch, and conflating the two is a mixup that actually happened during
+this run (see "Applied to" above). `https://catavalua.softcatala.org/api`
+is production (note the `/api` suffix there); confirm with `docker inspect
+<container> --format '{{json .NetworkSettings.Ports}}'` if unsure whether
+a given port is actually container-published.
+
 Posted transcriptions land with `origin="whisper-large-v3-turbo"` — a new
 candidate alongside the existing `candidate_1`/`candidate_2`/Gemini rows,
-starting at 0 votes like any other. **How punctuated candidates get
-prioritized in the voting UI is a separate, not-yet-decided follow-up**
-(issue #8's own open item) — out of scope here.
+starting at 0 votes like any other. How punctuated candidates get
+prioritized in the voting UI (issue #8's own open item) is answered above
+under "Backend fix" — resolved by an explicit tiebreak, not left open.
 
 ## Files
 
